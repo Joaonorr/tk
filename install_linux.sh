@@ -1,7 +1,7 @@
 #!/bin/bash
 
 download_files () {
-    wget https://raw.githubusercontent.com/senapk/tk/master/tk.py -O ~/bin/tk
+    wget https://raw.githubusercontent.com/senapk/tk/master/tk.py -O ~/bin/th
     chmod +x ~/bin/tk
 }
 
@@ -21,4 +21,3 @@ mkdir -p ~/bin
 download_files
 export_path
 echo "DONE"
-

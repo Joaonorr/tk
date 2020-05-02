@@ -1413,7 +1413,8 @@ class Main:
         if code != 0:
             print(error)
             exit(1)
-
+        print(data)
+        exit(1)
         cmd = ["sh", "-c", data]
         code, out, err = Runner.subprocess_run(cmd)
         print("out:" + out)
