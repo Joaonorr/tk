@@ -632,15 +632,15 @@ class Compiler:
 
     @staticmethod
     def __prepare_hs(solver, keep_temp) -> str:
-        solver = Compiler.__prepare_hs_append_main(solver)
-        cmd = ["ghc", solver, "-o", solver + ".out"]
+        solver_main = Compiler.__prepare_hs_append_main(solver)
+        cmd = ["ghc", solver_main, "-o", solver + ".out"]
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
         if return_code != 0:
             raise Runner.CompileError(stdout + stderr)
         if not keep_temp:
-            os.remove(solver[:-3] + ".hi")
-            os.remove(solver[:-3] + ".o")
-            os.remove(solver)
+            os.remove(solver_main[:-3] + ".hi")
+            os.remove(solver_main[:-3] + ".o")
+            os.remove(solver_main)
         return solver + ".out"
 
     @staticmethod
@@ -1275,61 +1275,6 @@ class ActionExecute:
             output += [(wdir.folder, len(wdir.unit_list), wdir_out)]
         return output
 
-    """
-    @staticmethod
-    def prepare_local(solver_list: List[str], source_list: List[str], param: Param.Basic) -> Wdir:
-        wdir = Wdir(".")
-        if len(solver_list) == 0:
-            wdir.load_solvers()
-        else:
-            wdir.solvers(solver_list)
-        if len(source_list) == 0:
-            wdir.load_sources()
-        else:
-            wdir.sources(source_list)
-        wdir.parse_sources().filter(param.index)
-        return wdir
-    
-    @staticmethod
-    def show_details(wdir: Wdir, param: Param.Basic) -> Tuple[int, int]:
-        total_tests = len(wdir.unit_list) * len(wdir.solver_list)
-        passed_tests = 0
-        solvers_output: List[Tuple[Execution.Result, str]] = []
-        for solver in wdir.solver_list:
-            result, passed, output = ActionExecute._details_run_solver(solver, wdir.unit_list, param)
-            passed_tests += passed
-            solvers_output.append((result, output))
-
-        def set_mark(_result: bool):
-            return Symbol.success if _result else Symbol.failure
-
-        wdir.solver_mark = [Execution.get_result_mark(t[0]) for t in solvers_output]
-        errors = [entry for entry in solvers_output if entry[0] != Execution.Result.SUCCESS]
-        final_mark = set_mark(len(errors) == 0)
-        Logger.write(Report.format_resume(wdir.resume()) + " " + final_mark + "\n")
-        if not param.is_brief:
-            for _result, output in errors:
-                Logger.write(output)
-        return passed_tests, total_tests
-
-    @staticmethod
-    def show_brief(wdir_list: List[Wdir]) -> List[Tuple[str, int, int]]:
-        mat = [wdir.resume() for wdir in wdir_list]
-        sizes = Report.max_just_calc(mat)
-        output = []
-        for wdir in wdir_list:
-            ActionExecute._brief_print_resume(wdir, sizes)
-            if len(wdir.solver_list) == 0:
-                Logger.write(" [" + Symbol.failure.center(sizes[3]) + "] " + Symbol.failure + "\n")
-                output.append(("folder", 0, len(wdir.unit_list)))
-            else:
-                passed, total = ActionExecute._brief_print_solvers(wdir, sizes[3])
-                output.append((wdir.folder, passed, total))
-        return output
-    
-    
-    """
-
 
 class ActionList:
 
@@ -1369,11 +1314,11 @@ class ActionList:
 
 class Actions:
     @staticmethod
-    def compile(solver: str):
+    def compile(solver: str, keep: bool):
         result = False
         Logger.inc_level()
         try:
-            executable, is_temp = Compiler.prepare_exec(solver, True)
+            executable, is_temp = Compiler.prepare_exec(solver, keep)
             if is_temp:
                 Logger.write("executable ready as " + executable + '\n')
                 result = True
@@ -1429,7 +1374,7 @@ class Actions:
 class Main:
     @staticmethod
     def execute(args):
-        param = Param.Basic(args.index, args.brief, args.raw).set_keep(args.keep)
+        param = Param.Basic(args.index, args.brief, args.raw)
         if args.all:
             param.set_diff_mode(Param.DiffMode.ALL)
         elif args.none:
@@ -1440,7 +1385,7 @@ class Main:
 
     @staticmethod
     def compile(args):
-        if Actions.compile(args.cmd):
+        if Actions.compile(args.cmd, args.keep):
             return 0
         return 1
 
@@ -1477,11 +1422,12 @@ class Main:
                 "    ./tk list t.vpl                        # lista os testes\n"
                 "    ./tk list t.vpl -d                     # mostra os testes\n"
                 "    ./tk list t.vpl -t 5                   # mostra o teste 5\n"
-                "    ./tk run solver.c t.tio               # roda o comando e verifica utilizando o arquivo t.tio\n"
+                "    ./tk compile main.c                    # apenas compila o arquivo main.c para main.c.out\n"
+                "    ./tk run solver.c t.tio                # roda o comando e verifica utilizando o arquivo t.tio\n"
                 "    ./tk run solver.exe t.vpl              # roda o comando e verifica utilizando o arquivo t.vpl\n"
                 )
 
-        parser = argparse.ArgumentParser(prog='tk', description=desc)
+        parser = argparse.ArgumentParser(prog='tk', formatter_class=argparse.RawDescriptionHelpFormatter, description=desc,)
         subparsers = parser.add_subparsers(title='subcommands', help='help for subcommand')
 
         # list
@@ -1495,7 +1441,6 @@ class Main:
         parser_r.add_argument('target_list', metavar='T', type=str, nargs='*', help='solvers, test cases or folders')
         parser_r.add_argument('--all', '-a', action='store_true', help="show all failures")
         parser_r.add_argument('--none', '-n', action='store_true', help="show none failures")
-        parser_r.add_argument('--keep', '-k', action='store_true', help="keep all compilation files")
         parser_r.set_defaults(func=Main.execute)
 
         # build
@@ -1508,12 +1453,13 @@ class Main:
         # update
         parser_b = subparsers.add_parser('update', parents=[parent_manip], help='update a test target')
         parser_b.add_argument('target_list', metavar='T', type=str, nargs='+', help='input test targets.')
-        parser_b.add_argument('--cmd', '-c', type=str, help="solver file or command")
+        parser_b.add_argument('--cmd', '-c', type=str, help="solver file or command to update outputs")
         parser_b.set_defaults(func=Main.update)
 
         # compile
         parser_c = subparsers.add_parser('compile', help='compile you solver.')
         parser_c.add_argument('cmd', type=str, help="solver cmd to compile")
+        parser_c.add_argument('--keep', '-k', action='store_true', help="keep all compilation files")
         parser_c.set_defaults(func=Main.compile)
 
         args = parser.parse_args()
