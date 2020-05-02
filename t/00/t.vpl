@@ -1,0 +1,15 @@
+case=00 teste 01
+input=4
+5
+output="9
+-1
+"
+grade reduction=100%
+
+case=01 teste 02
+input=0
+5
+output="5
+-5
+"
+grade reduction=100%

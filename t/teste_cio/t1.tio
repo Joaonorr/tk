@@ -1,0 +1,29 @@
+>>>>>>>> teste 1 !%
+diga oi
+end
+========
+$diga oi
+oi
+$end
+<<<<<<<<
+
+>>>>>>>> teste 2 continuacao !%
+diga oi
+diga tim
+end
+========
+$diga oi
+oi
+$diga tim
+tim
+$end
+<<<<<<<<
+
+>>>>>>>> teste 3 sozinho !%
+some 2 2
+end
+========
+$some 2 2
+4
+$end
+<<<<<<<<
