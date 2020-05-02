@@ -12,33 +12,33 @@ import shutil
 
 class TestA(unittest.TestCase):
     def test_success(self):
-        unit_list = tk.Loader.parse_source("t/00/t.tio")
+        unit_list = tk.Loader.parse_source("data/00/t.tio")
         self.assertEqual(len(unit_list), 3)
-        solver = tk.Solver("t/00/solver_ok.c")
+        solver = tk.Solver("data/00/solver_ok.c")
         tk.Execution.execute_solver(solver, unit_list)
         self.assertEqual(solver.result, tk.Execution.Result.SUCCESS)
         self.assertEqual(3, len([unit for user, unit in zip(solver.user, unit_list) if user == unit.output]))
 
     def test_compilation_error(self):
-        unit_list = tk.Loader.parse_source("t/00/t.tio")
-        solver = tk.Solver("t/00/solver_comp.c")
+        unit_list = tk.Loader.parse_source("data/00/t.tio")
+        solver = tk.Solver("data/00/solver_comp.c")
         tk.Execution.execute_solver(solver, unit_list)
         self.assertEqual(solver.result, tk.Execution.Result.COMPILATION_ERROR)
         self.assertTrue("error: unused variable ‘c’" in solver.error_msg)
         self.assertTrue("cc1: all warnings being treated as errors" in solver.error_msg)
 
     def test_execution_error(self):
-        unit_list = tk.Loader.parse_source("t/00/t.tio")
-        solver = tk.Solver("t/00/solver_exec.py")
+        unit_list = tk.Loader.parse_source("data/00/t.tio")
+        solver = tk.Solver("data/00/solver_exec.py")
         tk.Execution.execute_solver(solver, unit_list)
         self.assertEqual(solver.result, tk.Execution.Result.EXECUTION_ERROR)
         error_msg = "45\n"
         self.assertEqual(solver.error_msg, error_msg)
 
     def test_wrong_error(self):
-        unit_list = tk.Loader.parse_source("t/00/t.tio")
+        unit_list = tk.Loader.parse_source("data/00/t.tio")
         self.assertEqual(len(unit_list), 3)
-        solver = tk.Solver("t/00/solver_wrong.c")
+        solver = tk.Solver("data/00/solver_wrong.c")
         tk.Execution.execute_solver(solver, unit_list)
         self.assertEqual(solver.result, tk.Execution.Result.WRONG_OUTPUT)
         self.assertEqual(2, len([unit for user, unit in zip(solver.user, unit_list) if user != unit.output]))
@@ -46,14 +46,14 @@ class TestA(unittest.TestCase):
 
 class TestB(unittest.TestCase):
     def test_load_tio(self):
-        unit_list = tk.Loader.parse_source("t/02/t.tio")
+        unit_list = tk.Loader.parse_source("data/02/t.tio")
         cases = list(map(lambda x: x.case, unit_list))
         self.assertEqual(cases, ["sem grade", "gr exclamação", "gr quarenta", "gr 100", "gr bugado", "gr vazio"])
         grades = list(map(lambda x: x.grade, unit_list))
         self.assertEqual(grades, [100, None, 40, 100, 100, None])
 
     def test_load_vpl(self):
-        unit_list = tk.Loader.parse_source("t/02/t.vpl")
+        unit_list = tk.Loader.parse_source("data/02/t.vpl")
         cases = list(map(lambda x: x.case, unit_list))
         self.assertEqual(cases, ["00 sem grade", "01 gr exclamação", "02 gr quarenta", "03 gr 100"])
         grades = list(map(lambda x: x.grade, unit_list))
@@ -107,15 +107,15 @@ class TestPatternLoader(unittest.TestCase):
 
 class TestLoadDir(unittest.TestCase):
     def test_load_dir(self):
-        unit_list = tk.Loader.parse_dir("t/03/tdir")
+        unit_list = tk.Loader.parse_dir("data/03/tdir")
         self.assertEqual(4, len(unit_list))
 
     def test_load_dir2(self):
-        unit_list = tk.Loader.parse_dir("t/03/tdir2")
+        unit_list = tk.Loader.parse_dir("data/03/tdir2")
         self.assertEqual(0, len(unit_list))
 
     def test_load_dir3(self):
-        unit_list = tk.Loader.parse_dir("t/03/tdir2 in.@ @.out")
+        unit_list = tk.Loader.parse_dir("data/03/tdir2 in.@ @.out")
         self.assertEqual(4, len(unit_list))
 
 
@@ -140,7 +140,7 @@ class TestLabelFactory(unittest.TestCase):
 class TestUpdateReadme(unittest.TestCase):
 
     def gen_test(self, manip: tk.Param.Manip, cmd: Optional[str], expected_path: str):
-        temp_dir = tk.Util.copy_to_temp("t/readme_update")
+        temp_dir = tk.Util.copy_to_temp("data/readme_update")
         shutil.copy(temp_dir + os.sep + "source.md", temp_dir + os.sep + "Readme.md")
         readme_path = temp_dir + "/Readme.md"
         if cmd:
@@ -171,7 +171,7 @@ class TestUpdateReadme(unittest.TestCase):
 class TestUpdateReadme2(unittest.TestCase):
 
     def gen_test(self, manip: tk.Param.Manip, cmd: Optional[str], expected_path: str):
-        temp_dir = tk.Util.copy_to_temp("t/readme_update_2")
+        temp_dir = tk.Util.copy_to_temp("data/readme_update_2")
         shutil.copy(temp_dir + os.sep + "source.md", temp_dir + os.sep + "Readme.md")
         readme_path = temp_dir + "/Readme.md"
         if cmd:
@@ -232,32 +232,32 @@ class Test2HS(unittest.TestCase):
 class TestActions(unittest.TestCase):
     def test_list_folders(self):
         tk.Logger.print_disable()
-        output = tk.Actions.list(["t/00", "t/01"], tk.Param.Basic())
-        self.assertEqual(output, [("t/00", 7), ("t/01", 4)])
+        output = tk.Actions.list(["data/00", "data/01"], tk.Param.Basic())
+        self.assertEqual(output, [("data/00", 7), ("data/01", 4)])
 
     def test_list_file(self):
         tk.Logger.print_disable()
-        output = tk.Actions.list(["t/00", "t/00/t.tio", "t/00/t.vpl"], tk.Param.Basic())
-        self.assertEqual(output, [(".", 5), ("t/00", 7)])
+        output = tk.Actions.list(["data/00", "data/00/t.tio", "data/00/t.vpl"], tk.Param.Basic())
+        self.assertEqual(output, [(".", 5), ("data/00", 7)])
 
     def test_execute_wrong(self):
         tk.Logger.print_disable()
-        out = tk.Actions.execute(["t/00/t.tio", "t/00/solver_wrong.c"], tk.Param.Basic())
+        out = tk.Actions.execute(["data/00/t.tio", "data/00/solver_wrong.c"], tk.Param.Basic())
         self.assertEqual(out, [(".", 3, [("solver_wrong.c", 1)])])
 
     def test_execute_right(self):
-        out = tk.Actions.execute(["t/00/t.tio", "t/00/solver_ok.c"], tk.Param.Basic())
+        out = tk.Actions.execute(["data/00/t.tio", "data/00/solver_ok.c"], tk.Param.Basic())
         self.assertEqual(out, [('.', 3, [('solver_ok.c', 3)])])
 
     def test_execute_half_wrong(self):
         tk.Logger.print_disable()
-        out = tk.Actions.execute(["t/half_right/t.tio", "t/half_right/solver_half.c"], tk.Param.Basic())
+        out = tk.Actions.execute(["data/half_right/t.tio", "data/half_right/solver_half.c"], tk.Param.Basic())
         self.assertEqual(out, [('.', 5, [('solver_half.c', 2)])])
 
     def test_execute_many(self):
         tk.Logger.print_disable()
-        out = tk.Actions.execute(["t/00"], tk.Param.Basic())
-        expected = [('t/00',  7, [('solver_comp.c', 0), ('solver_exec.py', 0), ('solver_ok.c', 7),
+        out = tk.Actions.execute(["data/00"], tk.Param.Basic())
+        expected = [('data/00',  7, [('solver_comp.c', 0), ('solver_exec.py', 0), ('solver_ok.c', 7),
                                   ('solver_seg.out', 0), ('solver_wrong.c', 3)])]
 
         self.assertEqual(out, expected)
@@ -265,19 +265,19 @@ class TestActions(unittest.TestCase):
 
 class TestWdir(unittest.TestCase):
     def test_load(self):
-        wdir = tk.Wdir("t/00").sources(["t/00/t.tio"]).parse_sources()
+        wdir = tk.Wdir("data/00").sources(["data/00/t.tio"]).parse_sources()
         self.assertEqual(len(wdir.unit_list), 3)
 
     def test_load2(self):
-        wdir = tk.Wdir("t/00").sources(["t/00/t.tio"]).parse_sources().filter(1)
+        wdir = tk.Wdir("data/00").sources(["data/00/t.tio"]).parse_sources().filter(1)
         self.assertEqual(len(wdir.unit_list), 1)
 
     def test_load3(self):
-        wdir = tk.Wdir("t/00").load_sources().parse_sources()
+        wdir = tk.Wdir("data/00").load_sources().parse_sources()
         self.assertEqual(len(wdir.unit_list), 7)
 
     def test_load4(self):
-        wdir = tk.Wdir("t/00").load_sources().parse_sources().filter(1)
+        wdir = tk.Wdir("data/00").load_sources().parse_sources().filter(1)
         self.assertEqual(len(wdir.unit_list), 1)
 
 
@@ -285,9 +285,9 @@ class TestBrief(unittest.TestCase):
     def test_list_brief(self):
         tk.Logger.store()
         param = tk.Param.Basic(None, True, False)
-        tk.Actions.list(["t/00"], param)
+        tk.Actions.list(["data/00"], param)
         output = tk.Logger.recover()
-        expected = "=>t/00 (03) [t.vpl(02), t.tio(03), t2.vpl(02)] " \
+        expected = "=>data/00 (03) [t.vpl(02), t.tio(03), t2.vpl(02)] " \
                    "[(»)solver_comp.c, (»)solver_exec.py, (»)solver_ok.c, "\
                    "(»)solver_seg.out, (»)solver_wrong.c] (»)\n"
         self.assertEqual(output, expected)
@@ -295,7 +295,7 @@ class TestBrief(unittest.TestCase):
 
 class TestCio(unittest.TestCase):
     def test_build_error(self):
-        fdir = "t/teste_cio/"
+        fdir = "data/teste_cio/"
         dest = fdir + "_t1.tio"
         source = [fdir + "missing.tio"]
         tk.Logger.store()
@@ -306,12 +306,12 @@ class TestCio(unittest.TestCase):
         self.assertEqual(file_created, False)
         if file_created:
             os.remove(dest)
-        expected = "    warning: unable to find: t/teste_cio/missing.tio\n" +\
+        expected = "    warning: unable to find: data/teste_cio/missing.tio\n" +\
                    "    failure: none source found\n"
         self.assertEqual(msg, expected)
 
     def test_build_error_2(self):
-        fdir = "t/teste_cio/"
+        fdir = "data/teste_cio/"
         dest = fdir + "_t1.tio"
         expected = fdir + "t1.tio"
         source = [fdir + "missing.tio", fdir + "R1.md"]
@@ -319,7 +319,7 @@ class TestCio(unittest.TestCase):
         manip = tk.Param.Manip()
         created = tk.Actions.build(dest, source, manip, True)
         msg = tk.Logger.recover()
-        expected_msg = "    warning: unable to find: t/teste_cio/missing.tio\n"
+        expected_msg = "    warning: unable to find: data/teste_cio/missing.tio\n"
         self.assertEqual(msg, expected_msg)
 
         file_created = os.path.isfile(dest)
@@ -334,7 +334,7 @@ class TestCio(unittest.TestCase):
             os.remove(dest)
 
     def test_build_from_cio_1(self):
-        fdir = "t/teste_cio/"
+        fdir = "data/teste_cio/"
         dest = fdir + "_t1.tio"
         source = [fdir + "R1.md"]
         expected = fdir + "t1.tio"
@@ -347,7 +347,7 @@ class TestCio(unittest.TestCase):
         self.assertEqual(dest_content, expected_content)
 
     def test_build_from_cio_2(self):
-        fdir = "t/teste_cio/"
+        fdir = "data/teste_cio/"
         dest = fdir + "_t2.tio"
         source = [fdir + "R2.md"]
         expected = fdir + "t2.tio"

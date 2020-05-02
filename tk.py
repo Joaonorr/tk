@@ -1408,30 +1408,31 @@ class Main:
     @staticmethod
     def tkupdate(args):
         tdir = tempfile.mkdtemp()
-        cmd = ["wget", "-O-", "https://raw.githubusercontent.com/senapk/tk/master/tools/install_linux.sh"]
+        installer = os.path.join(tdir, "installer.sh")
+        cmd = ["wget", "https://raw.githubusercontent.com/senapk/tk/master/tools/install_linux.sh", "-O", installer]
         code, data, error = Runner.subprocess_run(cmd)
         if code != 0:
             print(error)
             exit(1)
-        print(data)
-        exit(1)
-        cmd = ["sh", "-c", data]
+        cmd = ["sh", installer]
         code, out, err = Runner.subprocess_run(cmd)
-        print("out:" + out)
-        print("err:" + err)
+        if code == 0:
+            print(out)
+        else:
+            print(err)
         return 0
 
     @staticmethod
     def main():
         parent_basic = argparse.ArgumentParser(add_help=False)
-        parent_basic.add_argument('--brief', '-b', action='store_true', help="show less information")
-        parent_basic.add_argument('--raw', '-r', action='store_true', help="raw mode, disable  whitespaces rendering")
-        parent_basic.add_argument('--index', '-i', metavar="I", type=int, help='run a specific index')
+        parent_basic.add_argument('--brief', '-b', action='store_true', help="show less information.")
+        parent_basic.add_argument('--raw', '-r', action='store_true', help="raw mode, disable  whitespaces rendering.")
+        parent_basic.add_argument('--index', '-i', metavar="I", type=int, help='run a specific index.')
 
         parent_manip = argparse.ArgumentParser(add_help=False)
-        parent_manip.add_argument('--unlabel', '-u', action='store_true', help='remove all labels')
-        parent_manip.add_argument('--number', '-n', action='store_true', help='number labels')
-        parent_manip.add_argument('--sort', '-s', action='store_true', help="sort test cases by input size")
+        parent_manip.add_argument('--unlabel', '-u', action='store_true', help='remove all labels.')
+        parent_manip.add_argument('--number', '-n', action='store_true', help='number labels.')
+        parent_manip.add_argument('--sort', '-s', action='store_true', help="sort test cases by input size.")
 
         desc = ("Roda, Converte e Contrói testes de entrada e saída.\n"
                 "Use \"./tk comando -h\" para obter informações do comando específico.\n\n"
@@ -1445,41 +1446,41 @@ class Main:
                 )
 
         parser = argparse.ArgumentParser(prog='tk', formatter_class=argparse.RawDescriptionHelpFormatter, description=desc,)
-        subparsers = parser.add_subparsers(title='subcommands', help='help for subcommand')
+        subparsers = parser.add_subparsers(title='subcommands', help='help for subcommand.')
 
         # list
         parser_s = subparsers.add_parser('list', parents=[parent_basic], help='show case packs or folders.')
-        parser_s.add_argument('target_list', metavar='T', type=str, nargs='*', help='targets')
-        parser_s.add_argument('--display', '-d', action="store_true", help='display full test description')
+        parser_s.add_argument('target_list', metavar='T', type=str, nargs='*', help='targets.')
+        parser_s.add_argument('--display', '-d', action="store_true", help='display full test description.')
         parser_s.set_defaults(func=Main.list)
 
         # run
-        parser_r = subparsers.add_parser('run', parents=[parent_basic], help='run you solver')
-        parser_r.add_argument('target_list', metavar='T', type=str, nargs='*', help='solvers, test cases or folders')
-        parser_r.add_argument('--all', '-a', action='store_true', help="show all failures")
-        parser_r.add_argument('--none', '-n', action='store_true', help="show none failures")
+        parser_r = subparsers.add_parser('run', parents=[parent_basic], help='run you solver.')
+        parser_r.add_argument('target_list', metavar='T', type=str, nargs='*', help='solvers, test cases or folders.')
+        parser_r.add_argument('--all', '-a', action='store_true', help="show all failures.")
+        parser_r.add_argument('--none', '-n', action='store_true', help="show none failures.")
         parser_r.set_defaults(func=Main.execute)
 
         # build
-        parser_b = subparsers.add_parser('build', parents=[parent_manip], help='build a test target')
+        parser_b = subparsers.add_parser('build', parents=[parent_manip], help='build a test target.')
         parser_b.add_argument('target', metavar='T_OUT', type=str, help='target to be build.')
         parser_b.add_argument('target_list', metavar='T', type=str, nargs='+', help='input test targets.')
-        parser_b.add_argument('--force', '-f', action='store_true', help='enable overwrite')
+        parser_b.add_argument('--force', '-f', action='store_true', help='enable overwrite.')
         parser_b.set_defaults(func=Main.build)
 
         # update
-        parser_b = subparsers.add_parser('update', parents=[parent_manip], help='update a test target')
+        parser_b = subparsers.add_parser('update', parents=[parent_manip], help='update a test target.')
         parser_b.add_argument('target_list', metavar='T', type=str, nargs='+', help='input test targets.')
-        parser_b.add_argument('--cmd', '-c', type=str, help="solver file or command to update outputs")
+        parser_b.add_argument('--cmd', '-c', type=str, help="solver file or command to update outputs.")
         parser_b.set_defaults(func=Main.update)
 
         # compile
         parser_c = subparsers.add_parser('compile', help='compile you solver.')
-        parser_c.add_argument('cmd', type=str, help="solver cmd to compile")
-        parser_c.add_argument('--keep', '-k', action='store_true', help="keep all compilation files")
+        parser_c.add_argument('cmd', type=str, help="solver cmd to compile.")
+        parser_c.add_argument('--keep', '-k', action='store_true', help="keep all compilation files.")
         parser_c.set_defaults(func=Main.compile)
 
-        parser_tkupdate = subparsers.add_parser('tkupdate', help='atualize o tk(linux only).')
+        parser_tkupdate = subparsers.add_parser('tkupdate', help='update tk script(linux only).')
         parser_tkupdate.set_defaults(func=Main.tkupdate)
 
         args = parser.parse_args()
