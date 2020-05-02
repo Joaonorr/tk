@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import platform
 import sys
 try:
     from termcolor import colored
@@ -1405,6 +1406,21 @@ class Main:
         return 0
 
     @staticmethod
+    def tkupdate(args):
+        tdir = tempfile.mkdtemp()
+        cmd = ["wget", "-O-", "https://raw.githubusercontent.com/senapk/tk/master/tools/install_linux.sh"]
+        code, data, error = Runner.subprocess_run(cmd)
+        if code != 0:
+            print(error)
+            exit(1)
+
+        cmd = ["sh", "-c", data]
+        code, out, err = Runner.subprocess_run(cmd)
+        print("out:" + out)
+        print("err:" + err)
+        return 0
+
+    @staticmethod
     def main():
         parent_basic = argparse.ArgumentParser(add_help=False)
         parent_basic.add_argument('--brief', '-b', action='store_true', help="show less information")
@@ -1461,6 +1477,9 @@ class Main:
         parser_c.add_argument('cmd', type=str, help="solver cmd to compile")
         parser_c.add_argument('--keep', '-k', action='store_true', help="keep all compilation files")
         parser_c.set_defaults(func=Main.compile)
+
+        parser_tkupdate = subparsers.add_parser('tkupdate', help='atualize o tk(linux only).')
+        parser_tkupdate.set_defaults(func=Main.tkupdate)
 
         args = parser.parse_args()
         if len(sys.argv) == 1:

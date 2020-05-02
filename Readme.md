@@ -23,7 +23,7 @@
 **Linux**
 Para baixar ou atualizar execute esse comando
 ```
-sh -c "$(wget -O- https://raw.gitkubusercontent.com/senapk/tk/master/tools/install_linux.sh)"
+sh -c "$(wget -O- https://raw.githubusercontent.com/senapk/tk/master/tools/install_linux.sh)"
 ```
 
 **Windows**

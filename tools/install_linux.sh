@@ -1,7 +1,7 @@
 #!/bin/bash
 
 download_files () {
-    wget https://raw.githubusercontent.com/senapk/tk/master/tk.py -O ~/bin/th
+    wget https://raw.githubusercontent.com/senapk/tk/master/tk.py -O ~/bin/tk
     chmod +x ~/bin/tk
 }
 
