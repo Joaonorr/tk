@@ -790,6 +790,12 @@ class Report:
         return Report.__term_width
 
     @staticmethod
+    def set_terminal_size(value: int):
+        if value % 2 == 0:
+            value -= 1
+        Report.__term_width = value
+
+    @staticmethod
     def centralize(text, sep=' ', left_border: Optional[str] = None, right_border: Optional[str] = None):
         if left_border is None:
             left_border = sep
@@ -893,12 +899,12 @@ class Report:
         return "\n".join(["".join(line) for line in data])
 
     @staticmethod
-    def show_unit_list(solver: Optional[Solver], unit_list: List[Unit], is_raw: bool) -> str:
+    def show_unit_list(user_list: Optional[List[str]], unit_list: List[Unit], is_raw: bool) -> str:
         output = io.StringIO()
-        user_lists = solver.user if solver else [None] * len(unit_list)
-        for user, unit in zip(user_lists, unit_list):
+        _user_list = user_list if user_list else [None] * len(unit_list)
+        for user, unit in zip(_user_list, unit_list):
             output.write(Report.__show_unit(user, unit, is_raw))
-        if is_raw or not solver:
+        if is_raw or not user_list:
             output.write(Report.centralize(Symbol.hbar, Symbol.hbar) + "\n")
         else:
             output.write(Report.centralize("   ", Symbol.hbar, " ", " ") + "\n")
@@ -1255,14 +1261,19 @@ class ActionExecute:
             return ""
         output = IOBuffer()
         if param.diff_mode != Param.DiffMode.NONE:
-            unit_list = [unit for user, unit in zip(solver.user, unit_list) if user != unit.output]
+            new_user = []
+            new_unit = []
+            for user, unit in zip(solver.user, unit_list):
+                if user != unit.output:
+                    new_user.append(user)
+                    new_unit.append(unit)
             if param.diff_mode == Param.DiffMode.FIRST:
-                unit_list = [unit_list[0]]
                 output.write(Report.centralize("MODE: FIRST FAILURE ONLY") + "\n")
+                new_user = [new_user[0]]
+                new_unit = [new_unit[0]]
             else:
                 output.write(Report.centralize("MODE: ALL FAILURES") + "\n")
-
-            output.write(Report.show_unit_list(solver, unit_list, param.is_raw))
+            output.write(Report.show_unit_list(new_user, new_unit, param.is_raw))
         return output.getvalue()
 
     @staticmethod

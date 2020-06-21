@@ -10,6 +10,12 @@ from tk import PatternLoader as Pl
 import shutil
 
 
+def fmt_code_str(data: str):
+    print("expected = (")
+    lines = ['"' + line + '\\n"' for line in data.split("\n")]
+    return "\n".join(lines[:-1]) + ")"
+
+
 class TestA(unittest.TestCase):
     def test_success(self):
         unit_list = tk.Loader.parse_source("data/00/t.tio")
@@ -358,6 +364,91 @@ class TestCio(unittest.TestCase):
         with open(expected) as f:
             expected_content = f.read()
         self.assertEqual(dest_content, expected_content)
+
+
+class TestDiff(unittest.TestCase):
+    def test_diff_c(self):
+        tk.Report.set_terminal_size(100)
+        tk.Logger.store()
+        tk.Actions.execute(["data/teste_diff_1"], tk.Param.Basic())
+        output = tk.Logger.recover()
+        expected = (
+            "=>data/teste_diff_1 (03) [t.tio(03)] [(ω)solver_wrong.c] (✗)\n"
+            "    (ω)=>data/teste_diff_1/solver_wrong.c WRONG_OUTPUT\n"
+            "        (✓)[00] GR:100 data/teste_diff_1/t.tio (teste 01)      \n"
+            "        (✗)[01] GR:100 data/teste_diff_1/t.tio (teste 02)      \n"
+            "        (✗)[02] GR:100 data/teste_diff_1/t.tio (teste 02)      \n"
+            "                                      MODE: FIRST FAILURE ONLY                                     \n"
+            " ───────────────────────────────────────────────   ─────────────────────────────────────────────── \n"
+            " GR:100 data/teste_diff_1/t.tio (teste 02)       │ GR:100 data/teste_diff_1/t.tio (teste 02)       \n"
+            " -------------------- INPUT -------------------- │ -------------------- INPUT -------------------- \n"
+            " 0↵                                              │ 0↵                                              \n"
+            " 5↵                                              │ 5↵                                              \n"
+            " --------------- EXPECTED OUTPUT --------------- │ ----------------- USER OUTPUT ----------------- \n"
+            " 5↵                                              ≠ 5↵                                              \n"
+            " -5↵                                             ≠ ↵                                               \n"
+            " ───────────────────────────────────────────────   ─────────────────────────────────────────────── \n")
+        self.assertEqual(output, expected)
+
+    def test_diff_all_raw(self):
+        tk.Report.set_terminal_size(100)
+        tk.Logger.store()
+        param = tk.Param.Basic(None, False, True)
+        param.set_diff_mode(tk.Param.DiffMode.ALL)
+        tk.Actions.execute(["data/teste_diff_1"], param)
+        output = tk.Logger.recover()
+        print(fmt_code_str(output))
+        expected = (
+            "=>data/teste_diff_1 (03) [t.tio(03)] [(ω)solver_wrong.c] (✗)\n"
+            "    (ω)=>data/teste_diff_1/solver_wrong.c WRONG_OUTPUT\n"
+            "        (✓)[00] GR:100 data/teste_diff_1/t.tio (teste 01)      \n"
+            "        (✗)[01] GR:100 data/teste_diff_1/t.tio (teste 02)      \n"
+            "        (✗)[02] GR:100 data/teste_diff_1/t.tio (teste 03)      \n"
+            "                                         MODE: ALL FAILURES                                        \n"
+            "───────────────────────────────────────────────────────────────────────────────────────────────────\n"
+            "                          GR:100 data/teste_diff_1/t.tio (teste 02)                                \n"
+            "-------------------------------------------PROGRAM INPUT-------------------------------------------\n"
+            "0\n"
+            "5\n"
+            "------------------------------------------EXPECTED OUTPUT------------------------------------------\n"
+            "5\n"
+            "-5\n"
+            "--------------------------------------------USER OUTPUT--------------------------------------------\n"
+            "5\n"
+            "───────────────────────────────────────────────────────────────────────────────────────────────────\n"
+            "                          GR:100 data/teste_diff_1/t.tio (teste 03)                                \n"
+            "-------------------------------------------PROGRAM INPUT-------------------------------------------\n"
+            "0\n"
+            "3\n"
+            "------------------------------------------EXPECTED OUTPUT------------------------------------------\n"
+            "3\n"
+            "-3\n"
+            "--------------------------------------------USER OUTPUT--------------------------------------------\n"
+            "3\n"
+            "───────────────────────────────────────────────────────────────────────────────────────────────────\n")
+        self.assertEqual(output, expected)
+
+    def test_diff_hs(self):
+        tk.Report.set_terminal_size(100)
+        tk.Logger.store()
+        tk.Actions.execute(["data/teste_diff_2"], tk.Param.Basic())
+        output = tk.Logger.recover()
+        expected = (
+            "=>data/teste_diff_2 (03) [Readme.md(03)] [(ω)solver.hs] (✗)\n"
+            "    (ω)=>data/teste_diff_2/solver.hs WRONG_OUTPUT\n"
+            "        (✓)[00] GR:100 data/teste_diff_2/Readme.md ()      \n"
+            "        (✓)[01] GR:100 data/teste_diff_2/Readme.md ()      \n"
+            "        (✗)[02] GR:100 data/teste_diff_2/Readme.md ()      \n"
+            "                                      MODE: FIRST FAILURE ONLY                                     \n"
+            " ───────────────────────────────────────────────   ─────────────────────────────────────────────── \n"
+            "   GR:100 data/teste_diff_2/Readme.md ()         │   GR:100 data/teste_diff_2/Readme.md ()         \n"
+            " -------------------- INPUT -------------------- │ -------------------- INPUT -------------------- \n"
+            " 1↵                                              │ 1↵                                              \n"
+            " -1↵                                             │ -1↵                                             \n"
+            " --------------- EXPECTED OUTPUT --------------- │ ----------------- USER OUTPUT ----------------- \n"
+            " -2↵                                             ≠ 0↵                                              \n"
+            " ───────────────────────────────────────────────   ─────────────────────────────────────────────── \n")
+        self.assertEqual(output, expected)
 
 
 if __name__ == '__main__':
