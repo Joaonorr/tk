@@ -1,3 +1,6 @@
+### Vídeo sobre o tutorial: [https://youtu.be/QuQfq7xh3xo](https://youtu.be/QuQfq7xh3xo)
+
+
 - Instalação
     - Linux
         - Instalação local na pasta ~/bin pelo script do github
