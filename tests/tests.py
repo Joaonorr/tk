@@ -377,7 +377,7 @@ class TestDiff(unittest.TestCase):
             "    (ω)=>data/teste_diff_1/solver_wrong.c WRONG_OUTPUT\n"
             "        (✓)[00] GR:100 data/teste_diff_1/t.tio (teste 01)      \n"
             "        (✗)[01] GR:100 data/teste_diff_1/t.tio (teste 02)      \n"
-            "        (✗)[02] GR:100 data/teste_diff_1/t.tio (teste 02)      \n"
+            "        (✗)[02] GR:100 data/teste_diff_1/t.tio (teste 03)      \n"
             "                                      MODE: FIRST FAILURE ONLY                                     \n"
             " ───────────────────────────────────────────────   ─────────────────────────────────────────────── \n"
             " GR:100 data/teste_diff_1/t.tio (teste 02)       │ GR:100 data/teste_diff_1/t.tio (teste 02)       \n"
@@ -385,8 +385,8 @@ class TestDiff(unittest.TestCase):
             " 0↵                                              │ 0↵                                              \n"
             " 5↵                                              │ 5↵                                              \n"
             " --------------- EXPECTED OUTPUT --------------- │ ----------------- USER OUTPUT ----------------- \n"
-            " 5↵                                              ≠ 5↵                                              \n"
-            " -5↵                                             ≠ ↵                                               \n"
+            " 5↵                                              │ 5↵                                              \n"
+            " -5↵                                             ≠                                                 \n"
             " ───────────────────────────────────────────────   ─────────────────────────────────────────────── \n")
         self.assertEqual(output, expected)
 
@@ -397,7 +397,6 @@ class TestDiff(unittest.TestCase):
         param.set_diff_mode(tk.Param.DiffMode.ALL)
         tk.Actions.execute(["data/teste_diff_1"], param)
         output = tk.Logger.recover()
-        print(fmt_code_str(output))
         expected = (
             "=>data/teste_diff_1 (03) [t.tio(03)] [(ω)solver_wrong.c] (✗)\n"
             "    (ω)=>data/teste_diff_1/solver_wrong.c WRONG_OUTPUT\n"

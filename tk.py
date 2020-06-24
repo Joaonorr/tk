@@ -31,31 +31,6 @@ class Unit:
         self.index = 0
         self.duplicated: Optional[int] = None
 
-    def to_vpl(self):
-        text = "case=" + self.case + "\n"
-        text += "input=" + self.input
-        text += "output=\"" + self.output + "\"\n"
-        if self.grade is None:
-            text += "grade reduction=\n"
-        else:
-            text += "grade reduction=" + str(self.grade).zfill(3) + "%\n"
-
-        return text
-
-    def to_tio(self):
-        text = ">>>>>>>>"
-        if self.case != '':
-            text += " " + self.case
-        if self.grade is None:
-            text += " !%"
-        elif self.grade != 100:
-            text += " " + str(self.grade) + "%"
-        text += '\n' + self.input
-        text += "========\n"
-        text += self.output
-        text += "<<<<<<<<\n"
-        return text
-
 
 class Symbol:
     opening = "=>"
@@ -1039,8 +1014,10 @@ class Writer:
         text = "case=" + unit.case + "\n"
         text += "input=" + unit.input
         text += "output=\"" + unit.output + "\"\n"
-        if unit.grade:
-            text += "grade reduction=" + str(unit.grade) + "%"
+        if unit.grade is None:
+            text += "grade reduction=\n"
+        else:
+            text += "grade reduction=" + str(unit.grade).zfill(3) + "%\n"
         return text
 
     @staticmethod
@@ -1048,15 +1025,15 @@ class Writer:
         text = ">>>>>>>>"
         if unit.case != '':
             text += " " + unit.case
-        if not unit.grade:
-            text += " " + "!%"
-        elif unit.grade != "100":
+        if unit.grade is None:
+            text += " !%"
+        elif unit.grade != 100:
             text += " " + str(unit.grade) + "%"
         text += '\n' + unit.input
         text += "========\n"
         text += unit.output
-        text += "<<<<<<<<"
-        return text + '\n'
+        text += "<<<<<<<<\n"
+        return text
 
     @staticmethod
     def save_dir_files(folder: str, pattern_loader: PatternLoader, label: str, unit: Unit) -> None:
@@ -1376,7 +1353,7 @@ class Actions:
             else:
                 with open(target) as f:
                     text = f.read()
-                str_tests = [unit.to_tio() for unit in wdir.unit_list]
+                str_tests = [Writer.to_tio(unit) for unit in wdir.unit_list]
                 output = Replacer.insert_tests(Loader.regex_tio, text, re.MULTILINE | re.DOTALL, str_tests)
                 with open(target, "w") as f:
                     f.write(output)
