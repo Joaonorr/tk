@@ -1,4 +1,4 @@
-# tk Test Helper
+# tk Test Kit
 
 <!--TOC_BEGIN-->
 - [Instalação](#instalação)
