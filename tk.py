@@ -1061,7 +1061,7 @@ class Writer:
         def save_dir(_target, _unit_list):
             folder, ipat, opat = _target.split(" ")
             if os.path.isdir(folder) or os.path.isfile(folder):
-                raise FileExistsError("fail: build dir now allowed to overwrite file or directory")
+                Logger.write("fail: build dir now allowed to overwrite file or directory\n")
             else:
                 os.mkdir(folder)
                 pattern_loader = PatternLoader(ipat, opat)

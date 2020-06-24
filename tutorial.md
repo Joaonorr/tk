@@ -143,4 +143,9 @@ ___
 ### Convertendo entre formatos
 - Gerando um `.vpl`
     - `tk build t.vpl testes.tio`
-    - consertar espaçamento do vpl
+- Gerando ou lendo o modelo de maratona
+    - Vamos definir que o padrão de entrada e saída são arquivos `.in` e `.sol`.
+        - `tk build "obi @.in @.sol" testes.tio`
+    - Se quisesse os testes no formato 00.in out.00, 01.in out.01, ...
+        - `tk build "obi @.in out.@" testes.tio`
+    - O @ funciona como um wildcard
