@@ -587,6 +587,16 @@ class Runner:
 
 
 class Compiler:
+
+    @staticmethod
+    def __prepare_java(solver: str) -> str:
+        cmd = ["javac", solver, '-d', '.']
+        return_code, stdout, stderr = Runner.subprocess_run(cmd)
+        if return_code != 0:
+            raise Runner.CompileError(stdout + stderr)
+        solver = solver.split(os.sep)[-1]  # getting only the filename
+        return "java " + solver[:-5]  # removing the .java
+
     @staticmethod
     def __prepare_c(solver: str) -> str:
         cmd = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type", "-Werror"]
@@ -647,6 +657,9 @@ class Compiler:
             return "python3 " + solver, False
         elif solver.endswith(".js"):
             return "node " + solver, False
+        elif solver.endswith(".java"):
+            solver_cmd = Compiler.__prepare_java(solver)
+            return solver_cmd, True
         elif solver.endswith(".c"):
             solver_cmd = Compiler.__prepare_c(solver)
             return solver_cmd, True
@@ -730,7 +743,11 @@ class Execution:
         for i in range(len(unit_list)):
             solver.user[i] = Execution.__process_input(exec_cmd, unit_list[i].input)
         if is_temp_file and not keep:
-            os.remove(exec_cmd)
+            if exec_cmd.startswith("java "):
+                for x in [item for item in os.listdir(".") if item.endswith(".class")]:
+                    os.remove(x)
+            else:
+                os.remove(exec_cmd)
 
     @staticmethod
     def __check_all_answers_right(solver: Solver, unit_list: List[Unit]) -> bool:
