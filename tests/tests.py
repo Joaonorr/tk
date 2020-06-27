@@ -294,8 +294,8 @@ class TestBrief(unittest.TestCase):
         tk.Actions.list(["data/00"], param)
         output = tk.Logger.recover()
         expected = "=>data/00 (03) [t.vpl(02), t.tio(03), t2.vpl(02)] " \
-                   "[(»)solver_comp.c, (»)solver_exec.py, (»)solver_ok.c, "\
-                   "(»)solver_seg.out, (»)solver_wrong.c] (»)\n"
+                   "[(.)solver_comp.c, (.)solver_exec.py, (.)solver_ok.c, "\
+                   "(.)solver_seg.out, (.)solver_wrong.c] (.)\n"
         self.assertEqual(output, expected)
 
 
@@ -373,11 +373,11 @@ class TestDiff(unittest.TestCase):
         tk.Actions.execute(["data/teste_diff_1"], tk.Param.Basic())
         output = tk.Logger.recover()
         expected = (
-            "=>data/teste_diff_1 (03) [t.tio(03)] [(ω)solver_wrong.c] (✗)\n"
-            "    (ω)=>data/teste_diff_1/solver_wrong.c WRONG_OUTPUT\n"
-            "        (✓)[00] GR:100 data/teste_diff_1/t.tio (teste 01)      \n"
-            "        (✗)[01] GR:100 data/teste_diff_1/t.tio (teste 02)      \n"
-            "        (✗)[02] GR:100 data/teste_diff_1/t.tio (teste 03)      \n"
+            "=>data/teste_diff_1 (03) [t.tio(03)] [(W)solver_wrong.c] (X)\n"
+            "    (W)=>data/teste_diff_1/solver_wrong.c WRONG_OUTPUT\n"
+            "        (S)[00] GR:100 data/teste_diff_1/t.tio (teste 01)      \n"
+            "        (X)[01] GR:100 data/teste_diff_1/t.tio (teste 02)      \n"
+            "        (X)[02] GR:100 data/teste_diff_1/t.tio (teste 03)      \n"
             "                                      MODE: FIRST FAILURE ONLY                                     \n"
             " ───────────────────────────────────────────────   ─────────────────────────────────────────────── \n"
             " GR:100 data/teste_diff_1/t.tio (teste 02)       │ GR:100 data/teste_diff_1/t.tio (teste 02)       \n"
@@ -398,11 +398,11 @@ class TestDiff(unittest.TestCase):
         tk.Actions.execute(["data/teste_diff_1"], param)
         output = tk.Logger.recover()
         expected = (
-            "=>data/teste_diff_1 (03) [t.tio(03)] [(ω)solver_wrong.c] (✗)\n"
-            "    (ω)=>data/teste_diff_1/solver_wrong.c WRONG_OUTPUT\n"
-            "        (✓)[00] GR:100 data/teste_diff_1/t.tio (teste 01)      \n"
-            "        (✗)[01] GR:100 data/teste_diff_1/t.tio (teste 02)      \n"
-            "        (✗)[02] GR:100 data/teste_diff_1/t.tio (teste 03)      \n"
+            "=>data/teste_diff_1 (03) [t.tio(03)] [(W)solver_wrong.c] (X)\n"
+            "    (W)=>data/teste_diff_1/solver_wrong.c WRONG_OUTPUT\n"
+            "        (S)[00] GR:100 data/teste_diff_1/t.tio (teste 01)      \n"
+            "        (X)[01] GR:100 data/teste_diff_1/t.tio (teste 02)      \n"
+            "        (X)[02] GR:100 data/teste_diff_1/t.tio (teste 03)      \n"
             "                                         MODE: ALL FAILURES                                        \n"
             "───────────────────────────────────────────────────────────────────────────────────────────────────\n"
             "                          GR:100 data/teste_diff_1/t.tio (teste 02)                                \n"
@@ -433,11 +433,11 @@ class TestDiff(unittest.TestCase):
         tk.Actions.execute(["data/teste_diff_2"], tk.Param.Basic())
         output = tk.Logger.recover()
         expected = (
-            "=>data/teste_diff_2 (03) [Readme.md(03)] [(ω)solver.hs] (✗)\n"
-            "    (ω)=>data/teste_diff_2/solver.hs WRONG_OUTPUT\n"
-            "        (✓)[00] GR:100 data/teste_diff_2/Readme.md ()      \n"
-            "        (✓)[01] GR:100 data/teste_diff_2/Readme.md ()      \n"
-            "        (✗)[02] GR:100 data/teste_diff_2/Readme.md ()      \n"
+            "=>data/teste_diff_2 (03) [Readme.md(03)] [(W)solver.hs] (X)\n"
+            "    (W)=>data/teste_diff_2/solver.hs WRONG_OUTPUT\n"
+            "        (S)[00] GR:100 data/teste_diff_2/Readme.md ()      \n"
+            "        (S)[01] GR:100 data/teste_diff_2/Readme.md ()      \n"
+            "        (X)[02] GR:100 data/teste_diff_2/Readme.md ()      \n"
             "                                      MODE: FIRST FAILURE ONLY                                     \n"
             " ───────────────────────────────────────────────   ─────────────────────────────────────────────── \n"
             "   GR:100 data/teste_diff_2/Readme.md ()         │   GR:100 data/teste_diff_2/Readme.md ()         \n"

@@ -34,13 +34,13 @@ class Unit:
 
 class Symbol:
     opening = "=>"
-    neutral = "(»)"  # u"\u2610"  # ☐
+    neutral = "(.)"  # "(»)"  # u"\u2610"  # ☐
     mark_size = len(neutral)
-    success = "(✓)"
-    failure = "(✗)"
-    wrong = "(ω)"
-    compilation = "(ϲ)"
-    execution = "(ϵ)"
+    success = "(S)"  # "(✓)"
+    failure = "(X)"  # "(✗)"
+    wrong = "(W)"  # "(ω)"
+    compilation = "(C)"  # "(ϲ)"
+    execution = "E"  # "(ϵ)"
     hbar = "─"
     vbar = "│"
     whitespace = u"\u2E31"  # interpunct
