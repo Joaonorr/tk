@@ -210,6 +210,8 @@ case 1 [1,2,3] 5 [2,7,3,9] == 1 [1,3,4,5,6]
 ```
 ```hs
 soma 2.4 [2.4,7.3,3.1,9.9] 7banana == 3
+texto 2 "banana madura" "ovo podre" 4 == "banana"
+texto2 "banana madura" 2 "ovo podre" == "banana"
 ```
 
 """
@@ -220,6 +222,8 @@ soma 2.4 [2.4,7.3,3.1,9.9] 7banana == 3
         self.assertEqual(tests[1], tk.HSMod.Case("case", "0\n4.4\n[1,2,3]\n5\n[2,7,3,9]\n", "[1,3,4,5,6]\n"))
         self.assertEqual(tests[2], tk.HSMod.Case("case", "1\n[1,2,3]\n5\n[2,7,3,9]\n", "1 [1,3,4,5,6]\n"))
         self.assertEqual(tests[3], tk.HSMod.Case("soma", "2.4\n[2.4,7.3,3.1,9.9]\n7banana\n", "3\n"))
+        self.assertEqual(str(tests[4]), str(tk.HSMod.Case("texto", '2\nbanana madura\novo podre\n4\n', '"banana"\n')))
+        self.assertEqual(tests[5], tk.HSMod.Case("texto2", 'banana madura\n2\novo podre\n', '"banana"\n'))
 
 
 class Test2HS(unittest.TestCase):
@@ -233,7 +237,6 @@ class Test2HS(unittest.TestCase):
     print $ elemento a b c
 """
         self.assertEqual(main_gen, main_str)
-
 
 class TestActions(unittest.TestCase):
     def test_list_folders(self):

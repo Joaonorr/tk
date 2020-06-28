@@ -81,20 +81,39 @@ class HSMod:
             self.input = _input
             self.output = _output
 
+        #return the
         def init_from_line(self, line: str) -> HSMod.Case:
             parts = line.split("==")
             # remove first word
             _input = parts[0].strip().split(" ")
             _cmd = _input[0]
             del _input[0]
+
+            # joining string with multiples spaces like "eggs and bacon"
+            it = 0
+            while it < len(_input):
+                if _input[it].startswith('"') and not _input[it].endswith('"'):
+                    _input[it] = _input[it] + " " + _input[it + 1]
+                    del _input[it + 1]
+                else:
+                    it = it + 1
+
             # remove empty words
             _input = [item for item in _input if item != ""]
-            _input = "\n".join(_input)
+
+            # removing " from beggining and ending of the strings
+            for i in range(len(_input)):
+                if _input[i].startswith('"') and _input[i].endswith('"'):
+                    _input[i] = _input[i][1:-1]
+
             _output = parts[1].strip()
             self.cmd = _cmd
-            self.input = _input + "\n"
+            self.input = "\n".join(_input) + "\n"
             self.output = _output + "\n"
             return self
+
+        def __str__(self):
+            return self.cmd + "(" + self.input + ")(" + self.output + ")"
 
         def __eq__(self, test):
             return (self.cmd == test.cmd) and (test.input == self.input) and (test.output == self.output)
