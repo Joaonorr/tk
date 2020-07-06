@@ -74,42 +74,60 @@ class Solver:
 
 
 class HSMod:
+    @staticmethod
+    def split_input_lint_in_parameters(input_line: str):
+        markup_char = "ł"
+        # keeping strings together
+        _input = input_line.strip().split('"')
+        it = 1
+        while it < len(_input):
+            _input[it] = _input[it].replace(" ", markup_char) # marking spaces inside strings
+            it += 2
+        line = '"'.join(_input)
+
+        parameters = line.split(" ")
+        for i in range(len(parameters)):
+            parameters[i] = parameters[i].replace(markup_char, " ")  # returning spaces inside strings
+
+        # remove empty words
+        parameters = [item for item in parameters if item != ""]
+        return parameters
+
+    @staticmethod
+    def split_test_line(line: str) -> Tuple[str, str, str]:
+        parts = line.split("==")
+        # remove first word
+        _input = parts[0].strip().split(" ")
+        _cmd = _input[0]
+        del _input[0]
+        _input_text = " ".join(_input)
+        _output_text = parts[1].strip() + "\n"
+        return _cmd, _input_text, _output_text
+
+    @staticmethod
+    def convert_parameters_to_input_block(parameters: List[str]):
+        _input = parameters[:]
+        # removing " from beggining and ending of the strings
+        for i in range(len(_input)):
+            if _input[i].startswith('"') and _input[i].endswith('"'):
+                _input[i] = _input[i][1:-1]
+        return "\n".join(_input) + "\n"
 
     class Case:
-        def __init__(self, cmd="", _input="", _output=""):
+        def __init__(self, cmd="", _input="", _output="", _parameters=[]):
             self.cmd = cmd
             self.input = _input
             self.output = _output
+            self.parameters = _parameters
 
-        #return the
         def init_from_line(self, line: str) -> HSMod.Case:
-            parts = line.split("==")
-            # remove first word
-            _input = parts[0].strip().split(" ")
-            _cmd = _input[0]
-            del _input[0]
-
-            # joining string with multiples spaces like "eggs and bacon"
-            it = 0
-            while it < len(_input):
-                if _input[it].startswith('"') and not _input[it].endswith('"'):
-                    _input[it] = _input[it] + " " + _input[it + 1]
-                    del _input[it + 1]
-                else:
-                    it = it + 1
-
-            # remove empty words
-            _input = [item for item in _input if item != ""]
-
-            # removing " from beggining and ending of the strings
-            for i in range(len(_input)):
-                if _input[i].startswith('"') and _input[i].endswith('"'):
-                    _input[i] = _input[i][1:-1]
-
-            _output = parts[1].strip()
-            self.cmd = _cmd
-            self.input = "\n".join(_input) + "\n"
-            self.output = _output + "\n"
+            cmd, input_text, output_text = HSMod.split_test_line(line)
+            parameters = HSMod.split_input_lint_in_parameters(input_text)
+            input_block = HSMod.convert_parameters_to_input_block(parameters)
+            self.cmd = cmd
+            self.input = input_block
+            self.output = output_text
+            self.parameters = parameters
             return self
 
         def __str__(self):
@@ -150,24 +168,51 @@ class HSMod:
                 return False
 
         @staticmethod
-        def _convert_token(token: str) -> str:
+        def is_float(token):
+            try:
+                float(token)
+                return True
+            except ValueError:
+                return False
+
+        @staticmethod
+        def identify_type(token: str) -> str:
             if token.startswith("["):
-                return "<- readLn :: IO [Int]"
+                data = token[1:-1].split(",")[0]
+                if HSMod.HMain.is_int(data):
+                    return "[Int]"
+                elif HSMod.HMain.is_float(data):
+                    return "[Float]"
+                elif data[0] == '"':
+                    return "[String]"
+                elif data[0] == "'":
+                    return "[Char]"
+                else:
+                    return "[Bool]"
             elif HSMod.HMain.is_int(token):
-                return "<- readLn :: IO Int"
+                return "Int"
+            elif HSMod.HMain.is_float(token):
+                return "Float"
+            elif token[0] == '"':
+                return "String"
+            elif token[0] == "'":
+                return "Char"
             else:
-                return "<- getLine"
+                return "Bool"
 
         @staticmethod
         def format_main(test: HSMod.Case) -> str:
+            readings = [HSMod.HMain.identify_type(token) for token in test.parameters]
+            readings = [("<- readLn :: IO " + _type) for _type in readings]
+            for i in range(len(readings)):
+                if readings[i] == "<- readLn :: IO String":
+                    readings[i] = "<- getLine"
             out = "main = do\n"
             var = "a"
             tab = "    "
             print_cmd = tab + "print $ " + test.cmd
-            lines = test.input.split("\n")
-            lines = [line for line in lines if line != ""]
-            for line in lines:
-                out += tab + var + " " + HSMod.HMain._convert_token(line) + "\n"
+            for reading in readings:
+                out += tab + var + " " + reading + "\n"
                 print_cmd += " " + var
                 var = chr(ord(var) + 1)
             return out + print_cmd + "\n"
