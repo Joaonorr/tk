@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from __future__ import annotations
+# from __future__ import annotations
 
 import platform
 import sys
@@ -120,7 +120,7 @@ class HSMod:
             self.output = _output
             self.parameters = _parameters
 
-        def init_from_line(self, line: str) -> HSMod.Case:
+        def init_from_line(self, line: str):
             cmd, input_text, output_text = HSMod.split_test_line(line)
             parameters = HSMod.split_input_lint_in_parameters(input_text)
             input_block = HSMod.convert_parameters_to_input_block(parameters)
@@ -152,7 +152,7 @@ class HSMod:
             return "\n".join(match_list)
 
         @staticmethod
-        def load_from_text(text: str) -> List[HSMod.Case]:
+        def load_from_text(text: str):
             text = HSMod.HFile.__extract_hs(text)
             lines = text.split("\n")
             lines = HSMod.HFile.__filter_lines(lines)
@@ -201,7 +201,7 @@ class HSMod:
                 return "Bool"
 
         @staticmethod
-        def format_main(test: HSMod.Case) -> str:
+        def format_main(test) -> str:
             readings = [HSMod.HMain.identify_type(token) for token in test.parameters]
             readings = [("<- readLn :: IO " + _type) for _type in readings]
             for i in range(len(readings)):
@@ -479,15 +479,15 @@ class Wdir:
         self.pack_list: List[List[Unit]] = []
         self.unit_list: List[Unit] = []
 
-    def sources(self, sources: List[str]) -> Wdir:
+    def sources(self, sources: List[str]):
         self.source_list = sources
         return self
 
-    def solvers(self, solvers: List[str]) -> Wdir:
+    def solvers(self, solvers: List[str]):
         self.solver_list = [Solver(solver) for solver in solvers]
         return self
 
-    def load_sources(self) -> Wdir:
+    def load_sources(self):
         file_list: List[str] = os.listdir(self.folder)
         s_list = []
         for file in file_list:
@@ -502,7 +502,7 @@ class Wdir:
         self.source_list = [os.path.join(self.folder, file) for file in s_list]
         return self
 
-    def load_solvers(self) -> Wdir:
+    def load_solvers(self):
         file_list: List[str] = os.listdir(self.folder)
         s_list = []
         for file in file_list:
@@ -512,7 +512,7 @@ class Wdir:
         self.solver_list = [Solver(os.path.join(self.folder, file)) for file in s_list]
         return self
 
-    def parse_sources(self) -> Wdir:
+    def parse_sources(self):
         loading_failures = 0
         for source in self.source_list:
             try:
@@ -527,7 +527,7 @@ class Wdir:
         self.__number_and_mark()
         return self
 
-    def filter(self, index: Optional[int]) -> Wdir:
+    def filter(self, index: Optional[int]):
         if index:
             if 0 <= index < len(self.unit_list):
                 self.unit_list = [self.unit_list[index]]
@@ -547,7 +547,7 @@ class Wdir:
             new_list.append(unit)
         self.unit_list = new_list
 
-    def manipulate(self, param: Param.Manip):
+    def manipulate(self, param):
         # filtering marked duplicated
         self.unit_list = [unit for unit in self.unit_list if unit.duplicated is None]
         if param.to_sort:
@@ -771,7 +771,7 @@ class Identifier:
         return solvers, sources, folders
 
     @staticmethod
-    def mount_wdir_list(target_list: List[str], param: Param.Basic) -> List[Wdir]:
+    def mount_wdir_list(target_list: List[str], param):
         wdir_list = []
         solvers, sources, folders = Identifier.split_input_list(target_list)
         if len(target_list) == 0:
@@ -1222,15 +1222,15 @@ class Param:
             self.display = False
             self.diff_mode = Param.DiffMode.FIRST
 
-        def set_keep(self, value) -> Param.Basic:
+        def set_keep(self, value):
             self.keep = value
             return self
 
-        def set_display(self, value) -> Param.Basic:
+        def set_display(self, value):
             self.display = value
             return self
 
-        def set_diff_mode(self, value: Param.DiffMode) -> Param.Basic:
+        def set_diff_mode(self, value):
             self.diff_mode = value
             return self
 
