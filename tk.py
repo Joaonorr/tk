@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# from __future__ import annotations
 
-import platform
 import sys
 try:
     from termcolor import colored
@@ -20,6 +18,8 @@ import tempfile
 import io
 from subprocess import PIPE
 
+asc2only = False
+
 
 class Unit:
     def __init__(self, case: str = "", inp: str = "", outp: str = "", grade: Optional[int] = None, source: str = ""):
@@ -33,14 +33,15 @@ class Unit:
 
 
 class Symbol:
+    only = asc2only
     opening = "=>"
-    neutral = "(.)"  # "(»)"  # u"\u2610"  # ☐
+    neutral = "(.)" if only else "(»)"  # u"\u2610"  # ☐
     mark_size = len(neutral)
-    success = "(S)"  # "(✓)"
-    failure = "(X)"  # "(✗)"
-    wrong = "(W)"  # "(ω)"
-    compilation = "(C)"  # "(ϲ)"
-    execution = "E"  # "(ϵ)"
+    success = "(S)" if only else "(✓)"
+    failure = "(X)" if only else "(✗)"
+    wrong = "(W)" if only else "(ω)"
+    compilation = "(C)" if only else "(ϲ)"
+    execution = "(E)" if only else "(ϵ)"
     hbar = "─"
     vbar = "│"
     whitespace = u"\u2E31"  # interpunct
@@ -53,181 +54,24 @@ class Solver:
         self.path: str = path
         self.filename: str = path.split(os.sep)[-1]
         self.user: List[Optional[str]] = []
-        self.result: Execution.Result = Execution.Result.UNTESTED
+        self.result: ExecutionResult = ExecutionResult.UNTESTED
         self.error_msg: str = ""
 
     def get_mark(self):
         return self._get_mark()
 
     def _get_mark(self):
-        if self.result == Execution.Result.UNTESTED:
+        if self.result == ExecutionResult.UNTESTED:
             return Symbol.neutral
-        elif self.result == Execution.Result.SUCCESS:
+        elif self.result == ExecutionResult.SUCCESS:
             return Symbol.success
-        elif self.result == Execution.Result.WRONG_OUTPUT:
+        elif self.result == ExecutionResult.WRONG_OUTPUT:
             return Symbol.wrong
-        elif self.result == Execution.Result.COMPILATION_ERROR:
+        elif self.result == ExecutionResult.COMPILATION_ERROR:
             return Symbol.compilation
-        elif self.result == Execution.Result.EXECUTION_ERROR:
+        elif self.result == ExecutionResult.EXECUTION_ERROR:
             return Symbol.execution
         return Symbol.failure
-
-
-class HSMod:
-    @staticmethod
-    def split_input_lint_in_parameters(input_line: str):
-        markup_char = "ł"
-        # keeping strings together
-        _input = input_line.strip().split('"')
-        it = 1
-        while it < len(_input):
-            _input[it] = _input[it].replace(" ", markup_char) # marking spaces inside strings
-            it += 2
-        line = '"'.join(_input)
-
-        parameters = line.split(" ")
-        for i in range(len(parameters)):
-            parameters[i] = parameters[i].replace(markup_char, " ")  # returning spaces inside strings
-
-        # remove empty words
-        parameters = [item for item in parameters if item != ""]
-        return parameters
-
-    @staticmethod
-    def split_test_line(line: str) -> Tuple[str, str, str]:
-        parts = line.split("==")
-        # remove first word
-        _input = parts[0].strip().split(" ")
-        _cmd = _input[0]
-        del _input[0]
-        _input_text = " ".join(_input)
-        _output_text = parts[1].strip() + "\n"
-        return _cmd, _input_text, _output_text
-
-    @staticmethod
-    def convert_parameters_to_input_block(parameters: List[str]):
-        _input = parameters[:]
-        # removing " from beggining and ending of the strings
-        for i in range(len(_input)):
-            if _input[i].startswith('"') and _input[i].endswith('"'):
-                _input[i] = _input[i][1:-1]
-        return "\n".join(_input) + "\n"
-
-    class Case:
-        def __init__(self, cmd="", _input="", _output="", _parameters=[]):
-            self.cmd = cmd
-            self.input = _input
-            self.output = _output
-            self.parameters = _parameters
-
-        def init_from_line(self, line: str):
-            cmd, input_text, output_text = HSMod.split_test_line(line)
-            parameters = HSMod.split_input_lint_in_parameters(input_text)
-            input_block = HSMod.convert_parameters_to_input_block(parameters)
-            self.cmd = cmd
-            self.input = input_block
-            self.output = output_text
-            self.parameters = parameters
-            return self
-
-        def __str__(self):
-            return self.cmd + "(" + self.input + ")(" + self.output + ")"
-
-        def __eq__(self, test):
-            return (self.cmd == test.cmd) and (test.input == self.input) and (test.output == self.output)
-
-    class HFile:
-        @staticmethod
-        def __filter_lines(lines: List[str]) -> List[str]:
-            lines = [line.strip() for line in lines]
-            lines = [line for line in lines if not line.startswith("--")]
-            lines = [line for line in lines if not line.startswith("```")]
-            lines = [line for line in lines if "==" in line]
-            return lines
-
-        @staticmethod
-        def __extract_hs(text: str) -> str:
-            regex = r"```hs(.*?)\n```"
-            match_list = re.findall(regex, text, re.MULTILINE | re.DOTALL)
-            return "\n".join(match_list)
-
-        @staticmethod
-        def load_from_text(text: str):
-            text = HSMod.HFile.__extract_hs(text)
-            lines = text.split("\n")
-            lines = HSMod.HFile.__filter_lines(lines)
-            return [HSMod.Case().init_from_line(line) for line in lines]
-
-    class HMain:
-        @staticmethod
-        def is_int(token):
-            try:
-                int(token)
-                return True
-            except ValueError:
-                return False
-
-        @staticmethod
-        def is_float(token):
-            try:
-                float(token)
-                return True
-            except ValueError:
-                return False
-
-        @staticmethod
-        def identify_type(token: str) -> str:
-            if token.startswith("["):
-                data = token[1:-1].split(",")[0]
-                if HSMod.HMain.is_int(data):
-                    return "[Int]"
-                elif HSMod.HMain.is_float(data):
-                    return "[Float]"
-                elif data[0] == '"':
-                    return "[String]"
-                elif data[0] == "'":
-                    return "[Char]"
-                else:
-                    return "[Bool]"
-            elif HSMod.HMain.is_int(token):
-                return "Int"
-            elif HSMod.HMain.is_float(token):
-                return "Float"
-            elif token[0] == '"':
-                return "String"
-            elif token[0] == "'":
-                return "Char"
-            else:
-                return "Bool"
-
-        @staticmethod
-        def format_main(test) -> str:
-            readings = [HSMod.HMain.identify_type(token) for token in test.parameters]
-            readings = [("<- readLn :: IO " + _type) for _type in readings]
-            for i in range(len(readings)):
-                if readings[i] == "<- readLn :: IO String":
-                    readings[i] = "<- getLine"
-            out = "main = do\n"
-            var = "a"
-            tab = "    "
-            print_cmd = tab + "print $ " + test.cmd
-            for reading in readings:
-                out += tab + var + " " + reading + "\n"
-                print_cmd += " " + var
-                var = chr(ord(var) + 1)
-            return out + print_cmd + "\n"
-
-    @staticmethod
-    def make_main(content: str) -> Optional[str]:
-        hcase_list = HSMod.HFile.load_from_text(content)
-        if hcase_list:
-            return HSMod.HMain.format_main(hcase_list[-1])
-        return None
-
-    @staticmethod
-    def load_htests(content: str, source: str) -> List[Unit]:
-        hcase_list = HSMod.HFile.load_from_text(content)
-        return [Unit("", hc.input, hc.output, 100, source) for hc in hcase_list]
 
 
 class IOBuffer:
@@ -462,7 +306,6 @@ class Loader:
             elif source.endswith(".md"):
                 tests = Loader.parse_tio(content, source)
                 tests += Loader.parse_cio(content, source)
-                tests += HSMod.load_htests(content, source)
                 return tests
             else:
                 Logger.write("warning: target format do not supported: " + source + '\n')  # make this a raise
@@ -563,7 +406,7 @@ class Wdir:
 
     def replace_input(self, solver: Solver):
         Execution.execute_solver(solver, self.unit_list)
-        if solver.result == Execution.Result.COMPILATION_ERROR or solver.result == Execution.Result.EXECUTION_ERROR:
+        if solver.result == ExecutionResult.COMPILATION_ERROR or solver.result == ExecutionResult.EXECUTION_ERROR:
             msg = "  " + solver.get_mark() + " " + solver.path + " " + solver.filename + "\n" + solver.error_msg
             raise RuntimeError(msg)
         else:
@@ -681,38 +524,7 @@ class Compiler:
         return solver + ".out"
 
     @staticmethod
-    def __prepare_hs(solver, keep_temp) -> str:
-        solver_main = Compiler.__prepare_hs_append_main(solver)
-        cmd = ["ghc", solver_main, "-o", solver + ".out"]
-        return_code, stdout, stderr = Runner.subprocess_run(cmd)
-        if return_code != 0:
-            raise Runner.CompileError(stdout + stderr)
-        if not keep_temp:
-            os.remove(solver_main[:-3] + ".hi")
-            os.remove(solver_main[:-3] + ".o")
-            os.remove(solver_main)
-        return solver + ".out"
-
-    @staticmethod
-    def __prepare_hs_append_main(solver) -> str:
-        with open(solver) as f:
-            content = f.read()
-        if "\nmain " not in content:
-            folder = os.sep.join(solver.split(os.sep)[:-1])
-            readme = os.path.join(folder, "Readme.md")
-            if os.path.isfile(readme):
-                with open(readme) as f:
-                    readme_content = f.read()
-                main_content = HSMod.make_main(readme_content)
-                if main_content:
-                    solver = os.path.join(folder, ".__solver__.hs")
-                    with open(solver, "w") as f:
-                        f.write(content + "\n")
-                        f.write(main_content)
-        return solver
-
-    @staticmethod
-    def prepare_exec(solver: str, keep_temp: bool) -> Tuple[str, bool]:
+    def prepare_exec(solver: str) -> Tuple[str, bool]:
         if os.sep not in solver and os.path.isfile("." + os.sep + solver):
             solver = "." + os.sep + solver
         if " " in solver:  # more than one parameter
@@ -730,43 +542,42 @@ class Compiler:
         elif solver.endswith(".cpp"):
             solver_cmd = Compiler.__prepare_cpp(solver)
             return solver_cmd, True
-        elif solver.endswith(".hs"):
-            solver_cmd = Compiler.__prepare_hs(solver, keep_temp)
-            return solver_cmd, True
         else:
             return solver, False
 
 
+class IdentifierType(Enum):
+    WDIR = "WORKING DIR"
+    OBI = "OBI"
+    MD = "MD"
+    TIO = "TIO"
+    VPL = "VPL"
+    SOLVER = "SOLVER"
+
+
 class Identifier:
-    class Type(Enum):
-        WDIR = "WORKING DIR"
-        OBI = "OBI"
-        MD = "MD"
-        TIO = "TIO"
-        VPL = "VPL"
-        SOLVER = "SOLVER"
 
     @staticmethod
-    def get_type(target: str) -> Type:
+    def get_type(target: str) -> IdentifierType:
         parts = target.split(" ")
         if os.path.isdir(target):
-            return Identifier.Type.WDIR
+            return IdentifierType.WDIR
         elif len(parts) == 3 and "@" in parts[1] and "@" in parts[2]:
-            return Identifier.Type.OBI
+            return IdentifierType.OBI
         elif target.endswith(".md"):
-            return Identifier.Type.MD
+            return IdentifierType.MD
         elif target.endswith(".tio"):
-            return Identifier.Type.TIO
+            return IdentifierType.TIO
         elif target.endswith(".vpl"):
-            return Identifier.Type.VPL
+            return IdentifierType.VPL
         else:
-            return Identifier.Type.SOLVER
+            return IdentifierType.SOLVER
 
     @staticmethod
     def split_input_list(input_list: List[str]) -> Tuple[List[str], List[str], List[str]]:
-        folders = [target for target in input_list if Identifier.get_type(target) == Identifier.Type.WDIR]
+        folders = [target for target in input_list if Identifier.get_type(target) == IdentifierType.WDIR]
         others = [target for target in input_list if target not in folders]
-        solvers = [target for target in others if Identifier.get_type(target) == Identifier.Type.SOLVER]
+        solvers = [target for target in others if Identifier.get_type(target) == IdentifierType.SOLVER]
         sources = [target for target in others if target not in solvers]
         return solvers, sources, folders
 
@@ -783,13 +594,15 @@ class Identifier:
         return wdir_list
 
 
+class ExecutionResult(Enum):
+    UNTESTED = "UNTESTED"
+    SUCCESS = "SUCCESS"
+    WRONG_OUTPUT = "WRONG OUTPUT"
+    COMPILATION_ERROR = "COMPILATION ERROR"
+    EXECUTION_ERROR = "EXECUTION ERROR"
+
+
 class Execution:
-    class Result(Enum):
-        UNTESTED = "UNTESTED"
-        SUCCESS = "SUCCESS"
-        WRONG_OUTPUT = "WRONG OUTPUT"
-        COMPILATION_ERROR = "COMPILATION ERROR"
-        EXECUTION_ERROR = "EXECUTION ERROR"
 
     @staticmethod
     def __process_input(exec_cmd: str, input_data: str) -> str:
@@ -801,7 +614,7 @@ class Execution:
 
     @staticmethod
     def __fill_user_answers(solver: Solver, unit_list: List[Unit], keep: bool = False) -> None:
-        exec_cmd, is_temp_file = Compiler.prepare_exec(solver.path, keep)
+        exec_cmd, is_temp_file = Compiler.prepare_exec(solver.path)
         for i in range(len(unit_list)):
             solver.user.append(None)
         for i in range(len(unit_list)):
@@ -822,14 +635,14 @@ class Execution:
         try:
             Execution.__fill_user_answers(solver, unit_list, keep)
             if Execution.__check_all_answers_right(solver, unit_list):
-                solver.result = Execution.Result.SUCCESS
+                solver.result = ExecutionResult.SUCCESS
             else:
-                solver.result = Execution.Result.WRONG_OUTPUT
+                solver.result = ExecutionResult.WRONG_OUTPUT
         except Runner.CompileError as e:
-            solver.result = Execution.Result.COMPILATION_ERROR
+            solver.result = ExecutionResult.COMPILATION_ERROR
             solver.error_msg = str(e)
         except Runner.ExecutionError as e:
-            solver.result = Execution.Result.EXECUTION_ERROR
+            solver.result = ExecutionResult.EXECUTION_ERROR
             solver.error_msg = str(e)
 
 
@@ -866,7 +679,7 @@ class Report:
     @staticmethod
     def max_just_calc(mat: List[List[str]]) -> List[int]:
 
-#        ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
+        # ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
 
         nl = len(mat)
         nc = len(mat[0]) if nl > 0 else 0
@@ -1025,16 +838,18 @@ class Report:
         return out
 
 
-class PatternLoader:
-    class FileSource:
-        def __init__(self, label, input_file, output_file):
-            self.label = label
-            self.input_file = input_file
-            self.output_file = output_file
+class FileSource:
+    def __init__(self, label, input_file, output_file):
+        self.label = label
+        self.input_file = input_file
+        self.output_file = output_file
 
-        def __eq__(self, other):
-            return self.label == other.label and self.input_file == other.input_file and \
-                   self.output_file == other.output_file
+    def __eq__(self, other):
+        return self.label == other.label and self.input_file == other.input_file and \
+                self.output_file == other.output_file
+
+
+class PatternLoader:
 
     def __init__(self, input_pattern: str, output_pattern: str):
         if input_pattern == "" or input_pattern == "@":
@@ -1060,8 +875,7 @@ class PatternLoader:
             raise ValueError("  fail: is output_pattern has the wildcard @, the input_pattern should have too")
 
     def make_file_source(self, label):
-        return PatternLoader.FileSource(label, self.input_pattern.replace("@", label),
-                                        self.output_pattern.replace("@", label))
+        return FileSource(label, self.input_pattern.replace("@", label), self.output_pattern.replace("@", label))
 
     def get_file_sources(self, filename_list: List[str]) -> List[FileSource]:
         input_re = self.input_pattern.replace(".", "\\.")
@@ -1163,9 +977,9 @@ class Writer:
                         Logger.write("file " + _target + " wrote\n")
 
         target_type = Identifier.get_type(target)
-        if target_type == Identifier.Type.OBI:
+        if target_type == IdentifierType.OBI:
             save_dir(target, unit_list)
-        elif target_type == Identifier.Type.TIO or target_type == Identifier.Type.VPL:
+        elif target_type == IdentifierType.TIO or target_type == IdentifierType.VPL:
             save_file(target, unit_list)
         else:
             Logger.write("fail: target " + target + " do not supported for build operation\n")
@@ -1214,13 +1028,18 @@ class Param:
         ALL = "MODE: SHOW ALL FAILURES"
 
     class Basic:
-        def __init__(self, index: Optional[int] = None, is_brief: bool = False, is_raw: bool = False):
+        def __init__(self, index: Optional[int] = None, is_brief: bool = False, is_raw: bool = False, pre: str = ""):
             self.index = index
             self.is_brief = is_brief
             self.is_raw = is_raw
             self.keep = False
             self.display = False
             self.diff_mode = Param.DiffMode.FIRST
+            self.pre = pre
+
+        def set_pre(self, value):
+            self.pre = value
+            return self
 
         def set_keep(self, value):
             self.keep = value
@@ -1258,13 +1077,14 @@ class ActionExecute:
                     diffs = ActionExecute.report_diffs(solver, wdir.unit_list, param)
                     if diffs != "":
                         Logger.write(diffs)
-                    if solver.result != Execution.Result.SUCCESS and param.diff_mode == Param.DiffMode.FIRST:
+                    if solver.result != ExecutionResult.SUCCESS and param.diff_mode == Param.DiffMode.FIRST:
                         break
         return ActionExecute.calc_passed(wdir_list)
 
     @staticmethod
     def print_resume_begin(resume: List[str], sizes: List[int]):
-        _resume = [resume[0].ljust(sizes[0], Symbol.cfill), resume[1].center(sizes[1], Symbol.cfill), resume[2].center(sizes[2], Symbol.cfill), None]
+        _resume = [resume[0].ljust(sizes[0], Symbol.cfill), resume[1].center(sizes[1], Symbol.cfill),
+                   resume[2].center(sizes[2], Symbol.cfill), None]
         Logger.write(Report.format_resume(_resume))
 
     @staticmethod
@@ -1281,10 +1101,10 @@ class ActionExecute:
             Logger.write(", ")
             acc += 2
         if i == len(solver_list) - 1:
-            if solver_list[0].result == Execution.Result.UNTESTED:
+            if solver_list[0].result == ExecutionResult.UNTESTED:
                 final_mark = Symbol.neutral
             else:
-                passed = len([solver for solver in solver_list if solver.result == Execution.Result.SUCCESS])
+                passed = len([solver for solver in solver_list if solver.result == ExecutionResult.SUCCESS])
                 final_mark = Symbol.success if passed == len(solver_list) else Symbol.failure
             Logger.write((total_size - acc) * Symbol.cfill + "] " + final_mark + "\n")
         return acc
@@ -1302,10 +1122,10 @@ class ActionExecute:
 
     @staticmethod
     def report_failure(solver: Solver, unit_list: List[Unit]) -> str:
-        if solver.result == Execution.Result.SUCCESS:
+        if solver.result == ExecutionResult.SUCCESS:
             return ""
         output = IOBuffer()
-        if solver.result == Execution.Result.WRONG_OUTPUT:
+        if solver.result == ExecutionResult.WRONG_OUTPUT:
             output.write(solver.get_mark() + Symbol.opening + solver.path + " " + solver.result.name + '\n')
             output.write(Report.format_header_list(solver, unit_list, Report.calc_filler(unit_list)) + '\n', 1)
         else:
@@ -1315,7 +1135,7 @@ class ActionExecute:
 
     @staticmethod
     def report_diffs(solver: Solver, unit_list: List[Unit], param: Param.Basic) -> str:
-        if solver.result != Execution.Result.WRONG_OUTPUT:
+        if solver.result != ExecutionResult.WRONG_OUTPUT:
             return ""
         output = IOBuffer()
         if param.diff_mode != Param.DiffMode.NONE:
@@ -1384,11 +1204,11 @@ class ActionList:
 
 class Actions:
     @staticmethod
-    def compile(solver: str, keep: bool):
+    def compile(solver: str):
         result = False
         Logger.inc_level()
         try:
-            executable, is_temp = Compiler.prepare_exec(solver, keep)
+            executable, is_temp = Compiler.prepare_exec(solver)
             if is_temp:
                 Logger.write("executable ready as " + executable + '\n')
                 result = True
@@ -1444,7 +1264,7 @@ class Actions:
 class Main:
     @staticmethod
     def execute(args):
-        param = Param.Basic(args.index, args.brief, args.raw)
+        param = Param.Basic(args.index, args.brief, args.raw, args.pre)
         if args.all:
             param.set_diff_mode(Param.DiffMode.ALL)
         elif args.none:
@@ -1475,11 +1295,11 @@ class Main:
         return 0
 
     @staticmethod
-    def tkupdate(args):
+    def tkupdate(_args):
         tdir = tempfile.mkdtemp()
         installer = os.path.join(tdir, "installer.sh")
         cmd = ["wget", "https://raw.githubusercontent.com/senapk/tk/master/tools/install_linux.sh", "-O", installer]
-        code, data, error = Runner.subprocess_run(cmd)
+        code, _data, error = Runner.subprocess_run(cmd)
         if code != 0:
             print(error)
             exit(1)
@@ -1514,7 +1334,7 @@ class Main:
                 "    ./tk run solver.exe t.vpl              # roda o comando e verifica utilizando o arquivo t.vpl\n"
                 )
 
-        parser = argparse.ArgumentParser(prog='tk', formatter_class=argparse.RawDescriptionHelpFormatter, description=desc,)
+        parser = argparse.ArgumentParser(prog='tk', description=desc)
         subparsers = parser.add_subparsers(title='subcommands', help='help for subcommand.')
 
         # list
@@ -1528,6 +1348,7 @@ class Main:
         parser_r.add_argument('target_list', metavar='T', type=str, nargs='*', help='solvers, test cases or folders.')
         parser_r.add_argument('--all', '-a', action='store_true', help="show all failures.")
         parser_r.add_argument('--none', '-n', action='store_true', help="show none failures.")
+        parser_r.add_argument('--pre', '-p', type=str, help="prepare script for solver and Readme.md")
         parser_r.set_defaults(func=Main.execute)
 
         # build
