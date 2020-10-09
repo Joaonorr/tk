@@ -18,8 +18,9 @@ import tempfile
 import io
 from subprocess import PIPE
 
-asc2only = False
 
+pre_script: str = ""
+asc2only: bool = False
 
 class Unit:
     def __init__(self, case: str = "", inp: str = "", outp: str = "", grade: Optional[int] = None, source: str = ""):
@@ -33,20 +34,32 @@ class Unit:
 
 
 class Symbol:
-    only = asc2only
     opening = "=>"
-    neutral = "(.)" if only else "(»)"  # u"\u2610"  # ☐
+    neutral = ""
     mark_size = len(neutral)
-    success = "(S)" if only else "(✓)"
-    failure = "(X)" if only else "(✗)"
-    wrong = "(W)" if only else "(ω)"
-    compilation = "(C)" if only else "(ϲ)"
-    execution = "(E)" if only else "(ϵ)"
+    success = ""
+    failure = ""
+    wrong = ""
+    compilation = ""
+    execution = ""
     hbar = "─"
     vbar = "│"
     whitespace = u"\u2E31"  # interpunct
     newline = u"\u21B5"  # carriage return
     cfill = "_"
+
+
+    def setAsc2Only(only: bool):
+        Symbol.neutral = "(.)" if only else "(»)"  # u"\u2610"  # ☐
+        Symbol.mark_size = len(Symbol.neutral)
+        Symbol.success = "(S)" if only else "(✓)"
+        Symbol.failure = "(X)" if only else "(✗)"
+        Symbol.wrong = "(W)" if only else "(ω)"
+        Symbol.compilation = "(C)" if only else "(ϲ)"
+        Symbol.execution = "(E)" if only else "(ϵ)"
+
+Symbol.setAsc2Only(asc2only) # inicalizacao estatica
+
 
 
 class Solver:
@@ -293,7 +306,7 @@ class Loader:
         return unit_list
 
     @staticmethod
-    def parse_source(source: str) -> List[Unit]:
+    def parse_source(source: str) -> List[Unit]:  # pre
         if " " in source and os.path.isdir(source.split(" ")[0]):
             return Loader.parse_dir(source)
         if os.path.isfile(source):
@@ -492,7 +505,6 @@ class Runner:
         stdout, stderr = p.communicate(input=input_data)
         return p.returncode, stdout, stderr
 
-
 class Compiler:
 
     @staticmethod
@@ -506,22 +518,28 @@ class Compiler:
 
     @staticmethod
     def __prepare_c(solver: str) -> str:
+        path_list = solver.split(os.sep)
+        path_list[-1] = ".__" + path_list[-1] + ".out"
+        exec_path = os.sep.join(path_list)
         cmd = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type", "-Werror"]
-        cmd += ["-fno-diagnostics-color", solver, "-o", solver + ".out", "-lm", "-lutil"]
+        cmd += ["-fno-diagnostics-color", solver, "-o", exec_path, "-lm", "-lutil"]
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
         if return_code != 0:
             raise Runner.CompileError(stdout + stderr)
-        return solver + ".out"
+        return exec_path
 
     @staticmethod
     def __prepare_cpp(solver: str) -> str:
+        path_list = solver.split(os.sep)
+        path_list[-1] = ".__" + path_list[-1] + ".out"
+        exec_path = os.sep.join(path_list)
         cmd = ["g++", "-std=c++17", "-Werror", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined"]
         cmd += ["-D_GLIBCXX_DEBUG"]
-        cmd += [solver, "-o", solver + ".out"]
+        cmd += [solver, "-o", exec_path]
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
         if return_code != 0:
             raise Runner.CompileError(stdout + stderr)
-        return solver + ".out"
+        return exec_path
 
     @staticmethod
     def prepare_exec(solver: str) -> Tuple[str, bool]:
@@ -641,9 +659,12 @@ class Execution:
         except Runner.CompileError as e:
             solver.result = ExecutionResult.COMPILATION_ERROR
             solver.error_msg = str(e)
-        except Runner.ExecutionError as e:
+        except (Runner.ExecutionError, FileNotFoundError, PermissionError) as e:
             solver.result = ExecutionResult.EXECUTION_ERROR
             solver.error_msg = str(e)
+
+
+
 
 
 class Report:
@@ -1028,18 +1049,13 @@ class Param:
         ALL = "MODE: SHOW ALL FAILURES"
 
     class Basic:
-        def __init__(self, index: Optional[int] = None, is_brief: bool = False, is_raw: bool = False, pre: str = ""):
+        def __init__(self, index: Optional[int] = None, is_brief: bool = False, is_raw: bool = False):
             self.index = index
             self.is_brief = is_brief
             self.is_raw = is_raw
             self.keep = False
             self.display = False
             self.diff_mode = Param.DiffMode.FIRST
-            self.pre = pre
-
-        def set_pre(self, value):
-            self.pre = value
-            return self
 
         def set_keep(self, value):
             self.keep = value
@@ -1204,7 +1220,7 @@ class ActionList:
 
 class Actions:
     @staticmethod
-    def compile(solver: str):
+    def compile(solver: str):  # pre
         result = False
         Logger.inc_level()
         try:
@@ -1264,7 +1280,7 @@ class Actions:
 class Main:
     @staticmethod
     def execute(args):
-        param = Param.Basic(args.index, args.brief, args.raw, args.pre)
+        param = Param.Basic(args.index, args.brief, args.raw)
         if args.all:
             param.set_diff_mode(Param.DiffMode.ALL)
         elif args.none:
@@ -1275,7 +1291,7 @@ class Main:
 
     @staticmethod
     def compile(args):
-        if Actions.compile(args.cmd, args.keep):
+        if Actions.compile(args.cmd):
             return 0
         return 1
 
@@ -1348,7 +1364,6 @@ class Main:
         parser_r.add_argument('target_list', metavar='T', type=str, nargs='*', help='solvers, test cases or folders.')
         parser_r.add_argument('--all', '-a', action='store_true', help="show all failures.")
         parser_r.add_argument('--none', '-n', action='store_true', help="show none failures.")
-        parser_r.add_argument('--pre', '-p', type=str, help="prepare script for solver and Readme.md")
         parser_r.set_defaults(func=Main.execute)
 
         # build

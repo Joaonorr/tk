@@ -6,7 +6,6 @@ import unittest
 import tk
 import os
 from typing import Optional
-from tk import PatternLoader as Pl
 import shutil
 
 
@@ -22,14 +21,14 @@ class TestA(unittest.TestCase):
         self.assertEqual(len(unit_list), 3)
         solver = tk.Solver("data/00/solver_ok.c")
         tk.Execution.execute_solver(solver, unit_list)
-        self.assertEqual(solver.result, tk.Execution.Result.SUCCESS)
+        self.assertEqual(solver.result, tk.ExecutionResult.SUCCESS)
         self.assertEqual(3, len([unit for user, unit in zip(solver.user, unit_list) if user == unit.output]))
 
     def test_compilation_error(self):
         unit_list = tk.Loader.parse_source("data/00/t.tio")
         solver = tk.Solver("data/00/solver_comp.c")
         tk.Execution.execute_solver(solver, unit_list)
-        self.assertEqual(solver.result, tk.Execution.Result.COMPILATION_ERROR)
+        self.assertEqual(solver.result, tk.ExecutionResult.COMPILATION_ERROR)
         self.assertTrue("error: unused variable ‘c’" in solver.error_msg)
         self.assertTrue("cc1: all warnings being treated as errors" in solver.error_msg)
 
@@ -37,7 +36,7 @@ class TestA(unittest.TestCase):
         unit_list = tk.Loader.parse_source("data/00/t.tio")
         solver = tk.Solver("data/00/solver_exec.py")
         tk.Execution.execute_solver(solver, unit_list)
-        self.assertEqual(solver.result, tk.Execution.Result.EXECUTION_ERROR)
+        self.assertEqual(solver.result, tk.ExecutionResult.EXECUTION_ERROR)
         error_msg = "45\n"
         self.assertEqual(solver.error_msg, error_msg)
 
@@ -46,7 +45,7 @@ class TestA(unittest.TestCase):
         self.assertEqual(len(unit_list), 3)
         solver = tk.Solver("data/00/solver_wrong.c")
         tk.Execution.execute_solver(solver, unit_list)
-        self.assertEqual(solver.result, tk.Execution.Result.WRONG_OUTPUT)
+        self.assertEqual(solver.result, tk.ExecutionResult.WRONG_OUTPUT)
         self.assertEqual(2, len([unit for user, unit in zip(solver.user, unit_list) if user != unit.output]))
 
 
@@ -71,22 +70,22 @@ class TestPatternLoader(unittest.TestCase):
         pattern_loader = tk.PatternLoader("@.in", "@.sol")
         file_list = ["1.in", "02.in", "a.in", "x.sol", "1.sol", "02.sol", "a.sol"]
         matches_list = pattern_loader.get_file_sources(file_list)
-        self.assertListEqual(matches_list, [Pl.FileSource("1", "1.in", "1.sol"), Pl.FileSource("02", "02.in", "02.sol"),
-                                            Pl.FileSource("a", "a.in", "a.sol")])
+        self.assertListEqual(matches_list, [tk.FileSource("1", "1.in", "1.sol"), tk.FileSource("02", "02.in", "02.sol"),
+                                            tk.FileSource("a", "a.in", "a.sol")])
 
     def test_make_out(self):
         pattern_loader = tk.PatternLoader("@.in", "out.@")
         file_list = ["1.in", "02.in", "a.in", "x.sol", "out.1", "out.02", "out.a"]
         matches_list = pattern_loader.get_file_sources(file_list)
-        self.assertListEqual(matches_list, [Pl.FileSource("1", "1.in", "out.1"), Pl.FileSource("02", "02.in", "out.02"),
-                                            Pl.FileSource("a", "a.in", "out.a")])
+        self.assertListEqual(matches_list, [tk.FileSource("1", "1.in", "out.1"), tk.FileSource("02", "02.in", "out.02"),
+                                            tk.FileSource("a", "a.in", "out.a")])
 
     def test_make_2(self):
         pattern_loader = tk.PatternLoader("in.@", "out.@")
         file_list = ["in.1", "in.02", "in.a", "x.sol", "out.1", "out.02", "out.a"]
         matches_list = pattern_loader.get_file_sources(file_list)
-        self.assertListEqual(matches_list, [Pl.FileSource("1", "in.1", "out.1"), Pl.FileSource("02", "in.02", "out.02"),
-                                            Pl.FileSource("a", "in.a", "out.a")])
+        self.assertListEqual(matches_list, [tk.FileSource("1", "in.1", "out.1"), tk.FileSource("02", "in.02", "out.02"),
+                                            tk.FileSource("a", "in.a", "out.a")])
 
     def test_unmatched(self):
         pattern_loader = tk.PatternLoader("@.in", "out.@")
@@ -193,51 +192,6 @@ class TestUpdateReadme2(unittest.TestCase):
         self.gen_test(tk.Param.Manip(False, True, False), None, "sorted.md")
 
 
-class TestHS(unittest.TestCase):
-    def setUp(self):
-        self.data = """
-```
-a == b
-```
-a == b
-```hs
---IN : Lista xs e um natural n
---OUT: N-ésimo termo de xs
-outro lixo qualquer sem igual igual
-elemento 2 [2,7,3,9] banana == 3
-case 0 4.4 [1,2,3] 5 [2,7,3,9] == [1,3,4,5,6]
-case 1 [1,2,3] 5 [2,7,3,9] == 1 [1,3,4,5,6]
-```
-```hs
-soma 2.4 [2.4,7.3,3.1,9.9] 7banana == 3
-texto 2 "banana madura" "ovo podre" 4 == "banana"
-texto2 "banana madura" 2 "ovo podre" == "banana"
-```
-
-"""
-
-    def test_load(self):
-        tests = tk.HSMod.HFile.load_from_text(self.data)
-        self.assertEqual(tests[0], tk.HSMod.Case("elemento", "2\n[2,7,3,9]\nbanana\n", "3\n"))
-        self.assertEqual(tests[1], tk.HSMod.Case("case", "0\n4.4\n[1,2,3]\n5\n[2,7,3,9]\n", "[1,3,4,5,6]\n"))
-        self.assertEqual(tests[2], tk.HSMod.Case("case", "1\n[1,2,3]\n5\n[2,7,3,9]\n", "1 [1,3,4,5,6]\n"))
-        self.assertEqual(tests[3], tk.HSMod.Case("soma", "2.4\n[2.4,7.3,3.1,9.9]\n7banana\n", "3\n"))
-        self.assertEqual(str(tests[4]), str(tk.HSMod.Case("texto", '2\nbanana madura\novo podre\n4\n', '"banana"\n')))
-        self.assertEqual(tests[5], tk.HSMod.Case("texto2", 'banana madura\n2\novo podre\n', '"banana"\n'))
-
-
-class Test2HS(unittest.TestCase):
-
-    def test_hmain_0(self):
-        main_gen = tk.HSMod.HMain.format_main(tk.HSMod.Case("elemento", "2\n[2,7,3,9]\nbanana\n", "3\n"))
-        main_str = """main = do
-    a <- readLn :: IO Int
-    b <- readLn :: IO [Int]
-    c <- getLine
-    print $ elemento a b c
-"""
-        self.assertEqual(main_gen, main_str)
-
 class TestActions(unittest.TestCase):
     def test_list_folders(self):
         tk.Logger.print_disable()
@@ -267,7 +221,7 @@ class TestActions(unittest.TestCase):
         tk.Logger.print_disable()
         out = tk.Actions.execute(["data/00"], tk.Param.Basic())
         expected = [('data/00',  7, [('solver_comp.c', 0), ('solver_exec.py', 0), ('solver_ok.c', 7),
-                                  ('solver_seg.out', 0), ('solver_wrong.c', 3)])]
+                                     ('solver_seg.out', 0), ('solver_wrong.c', 3)])]
 
         self.assertEqual(out, expected)
 
@@ -292,6 +246,7 @@ class TestWdir(unittest.TestCase):
 
 class TestBrief(unittest.TestCase):
     def test_list_brief(self):
+        tk.Symbol.setAsc2Only(True)
         tk.Logger.store()
         param = tk.Param.Basic(None, True, False)
         tk.Actions.list(["data/00"], param)
@@ -394,6 +349,7 @@ class TestDiff(unittest.TestCase):
         self.assertEqual(output, expected)
 
     def test_diff_all_raw(self):
+        tk.Symbol.setAsc2Only(True)
         tk.Report.set_terminal_size(100)
         tk.Logger.store()
         param = tk.Param.Basic(None, False, True)
@@ -430,27 +386,7 @@ class TestDiff(unittest.TestCase):
             "───────────────────────────────────────────────────────────────────────────────────────────────────\n")
         self.assertEqual(output, expected)
 
-    def test_diff_hs(self):
-        tk.Report.set_terminal_size(100)
-        tk.Logger.store()
-        tk.Actions.execute(["data/teste_diff_2"], tk.Param.Basic())
-        output = tk.Logger.recover()
-        expected = (
-            "=>data/teste_diff_2 (03) [Readme.md(03)] [(W)solver.hs] (X)\n"
-            "    (W)=>data/teste_diff_2/solver.hs WRONG_OUTPUT\n"
-            "        (S)[00] GR:100 data/teste_diff_2/Readme.md ()      \n"
-            "        (S)[01] GR:100 data/teste_diff_2/Readme.md ()      \n"
-            "        (X)[02] GR:100 data/teste_diff_2/Readme.md ()      \n"
-            "                                      MODE: FIRST FAILURE ONLY                                     \n"
-            " ───────────────────────────────────────────────   ─────────────────────────────────────────────── \n"
-            "   GR:100 data/teste_diff_2/Readme.md ()         │   GR:100 data/teste_diff_2/Readme.md ()         \n"
-            " -------------------- INPUT -------------------- │ -------------------- INPUT -------------------- \n"
-            " 1↵                                              │ 1↵                                              \n"
-            " -1↵                                             │ -1↵                                             \n"
-            " --------------- EXPECTED OUTPUT --------------- │ ----------------- USER OUTPUT ----------------- \n"
-            " -2↵                                             ≠ 0↵                                              \n"
-            " ───────────────────────────────────────────────   ─────────────────────────────────────────────── \n")
-        self.assertEqual(output, expected)
+
 
 
 if __name__ == '__main__':
