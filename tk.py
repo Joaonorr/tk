@@ -18,8 +18,6 @@ import tempfile
 import io
 from subprocess import PIPE
 
-
-pre_script: str = ""
 asc2only: bool = False
 
 class Unit:
@@ -48,7 +46,7 @@ class Symbol:
     newline = u"\u21B5"  # carriage return
     cfill = "_"
 
-
+    @staticmethod
     def setAsc2Only(only: bool):
         Symbol.neutral = "(.)" if only else "(»)"  # u"\u2610"  # ☐
         Symbol.mark_size = len(Symbol.neutral)
@@ -178,6 +176,45 @@ class Logger:
         return Logger._buffer.getvalue()
 
 
+class PreScript:
+    cmd: str = ""
+
+    @staticmethod
+    def setCmd(cmd):
+        PreScript.cmd = cmd
+
+    @staticmethod
+    def exists():
+        return PreScript.cmd != ""
+
+    @staticmethod
+    def processSource(path: str):
+        output_path = tempfile.mkdtemp() + os.sep + "Readme.md"
+        cmd = [PreScript.cmd, "--source", path, output_path]
+        try:
+            Runner.subprocess_run(cmd)
+        except BaseException as e:
+            print(e)
+            exit(1)
+        return output_path
+
+    @staticmethod
+    def processSolver(path: str):
+        tempdir = tempfile.mkdtemp()
+        output_path = tempdir + os.sep + path.split(os.sep)[-1] + ".out"
+        cmd = [PreScript.cmd, "--solver", path, output_path]
+        try:
+            return_code, _stdout, _stderr = Runner.subprocess_run(cmd)
+            if return_code == 1:
+                return path
+            elif return_code == 2:
+                print(_stdout)
+                exit(1)
+        except BaseException as e:
+            print(e)
+            exit(1)
+        return output_path
+
 class Loader:
     regex_tio = r"^ *>>>>>>>> *(.*?)\n(.*?)^ *======== *\n(.*?)^ *<<<<<<<< *\n?"
     regex_vpl = r"^ *[Cc]ase *= *([ \S]*) *\n *input *=(.*?)^ *output *=(.*?)^ *grade *reduction *= *(\S*) *\n?"
@@ -211,7 +248,7 @@ class Loader:
         # concatenando testes contínuos
         for i in range(len(unit_list)):
             unit = unit_list[i]
-            if "\n$end" not in unit.output:
+            if "\n$end" not in unit.output and (i < len(unit_list) - 1):
                 unit_list[i + 1].output = unit.output + '\n' + unit_list[i + 1].output
                 unit.output = unit.output + "\n$end\n"
 
@@ -306,10 +343,12 @@ class Loader:
         return unit_list
 
     @staticmethod
-    def parse_source(source: str) -> List[Unit]:  # pre
+    def parse_source(source: str) -> List[Unit]:
         if " " in source and os.path.isdir(source.split(" ")[0]):
             return Loader.parse_dir(source)
         if os.path.isfile(source):
+            if PreScript.exists():
+                source = PreScript.processSource(source)
             with open(source) as f:
                 content = f.read()
             if source.endswith(".vpl"):
@@ -543,6 +582,9 @@ class Compiler:
 
     @staticmethod
     def prepare_exec(solver: str) -> Tuple[str, bool]:
+        if PreScript.exists():
+            solver = PreScript.processSolver(solver)
+
         if os.sep not in solver and os.path.isfile("." + os.sep + solver):
             solver = "." + os.sep + solver
         if " " in solver:  # more than one parameter
@@ -1220,7 +1262,7 @@ class ActionList:
 
 class Actions:
     @staticmethod
-    def compile(solver: str):  # pre
+    def compile(solver: str):
         result = False
         Logger.inc_level()
         try:
@@ -1333,11 +1375,13 @@ class Main:
         parent_basic.add_argument('--brief', '-b', action='store_true', help="show less information.")
         parent_basic.add_argument('--raw', '-r', action='store_true', help="raw mode, disable  whitespaces rendering.")
         parent_basic.add_argument('--index', '-i', metavar="I", type=int, help='run a specific index.')
+        parent_basic.add_argument('--pre', '-p', type=str, help="preprocess script")
 
         parent_manip = argparse.ArgumentParser(add_help=False)
         parent_manip.add_argument('--unlabel', '-u', action='store_true', help='remove all labels.')
         parent_manip.add_argument('--number', '-n', action='store_true', help='number labels.')
         parent_manip.add_argument('--sort', '-s', action='store_true', help="sort test cases by input size.")
+        parent_manip.add_argument('--pre', '-p', type=str, help="preprocess script")
 
         desc = ("Roda, Converte e Contrói testes de entrada e saída.\n"
                 "Use \"./tk comando -h\" para obter informações do comando específico.\n\n"
