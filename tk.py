@@ -810,6 +810,9 @@ class Report:
         ta = text_a.split("\n")
         tb = text_b.split("\n")
         size = max(len(ta), len(tb)) - 1
+        if text_b[-1] != '\n':
+            size += 1
+
         data = [list(" " * term_width) for _x in range(size)]
 
         for line in range(size):
