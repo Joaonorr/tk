@@ -834,11 +834,11 @@ class Report:
         return "\n".join(["".join(line) for line in data])
 
     @staticmethod
-    def show_unit_list(user_list: Optional[List[str]], unit_list: List[Unit], is_raw: bool) -> str:
+    def show_unit_list(user_list: Optional[List[str]], unit_list: List[Unit], is_raw: bool, is_vertical: bool) -> str:
         output = io.StringIO()
         _user_list = user_list if user_list else [None] * len(unit_list)
         for user, unit in zip(_user_list, unit_list):
-            output.write(Report.__show_unit(user, unit, is_raw))
+            output.write(Report.__show_unit(user, unit, is_raw, is_vertical))
         if is_raw or not user_list:
             output.write(Report.centralize(Symbol.hbar, Symbol.hbar) + "\n")
         else:
@@ -846,7 +846,7 @@ class Report:
         return output.getvalue()
 
     @staticmethod
-    def __show_unit(user: Optional[str], unit: Unit, is_raw: bool = False) -> str:
+    def __show_unit(user: Optional[str], unit: Unit, is_raw: bool = False, is_vertical: bool = False) -> str:
 
         def mount_side_title(left, right, filler=" ", middle=" "):
             half = int(Report.get_terminal_size() / 2)
@@ -865,7 +865,7 @@ class Report:
         dotted = "-"
         vertical_separator = Symbol.vbar
 
-        if is_raw or not str_user:
+        if is_vertical or not str_user:
             output.write(Report.centralize(Symbol.hbar, Symbol.hbar) + "\n")
             output.write(Report.centralize(title) + "\n")
             output.write(Report.centralize("PROGRAM INPUT", dotted) + "\n")
@@ -1100,7 +1100,12 @@ class Param:
             self.is_raw = is_raw
             self.keep = False
             self.display = False
+            self.is_vertical = False
             self.diff_mode = Param.DiffMode.FIRST
+        
+        def set_vertical(self, value):
+            self.is_vertical = value
+            return self
 
         def set_keep(self, value):
             self.keep = value
@@ -1212,7 +1217,7 @@ class ActionExecute:
                 new_unit = [new_unit[0]]
             else:
                 output.write(Report.centralize("MODE: ALL FAILURES") + "\n")
-            output.write(Report.show_unit_list(new_user, new_unit, param.is_raw))
+            output.write(Report.show_unit_list(new_user, new_unit, param.is_raw, param.is_vertical))
         return output.getvalue()
 
     @staticmethod
@@ -1246,7 +1251,7 @@ class ActionList:
                 if wdir.unit_list:
                     Logger.write(Report.format_header_list(None, wdir.unit_list, headers_filler) + '\n', relative=1)
                 if param.display:
-                    Logger.write(Report.show_unit_list(None, wdir.unit_list, param.is_raw), 0)
+                    Logger.write(Report.show_unit_list(None, wdir.unit_list, param.is_raw, param.is_vertical), 0)
         return [(wdir.folder, len(wdir.unit_list)) for wdir in wdir_list]
 
     @staticmethod
@@ -1326,6 +1331,8 @@ class Main:
     @staticmethod
     def execute(args):
         param = Param.Basic(args.index, args.brief, args.raw)
+        if args.vertical:
+            param.set_vertical(True)
         if args.all:
             param.set_diff_mode(Param.DiffMode.ALL)
         elif args.none:
@@ -1409,6 +1416,7 @@ class Main:
         # run
         parser_r = subparsers.add_parser('run', parents=[parent_basic], help='run you solver.')
         parser_r.add_argument('target_list', metavar='T', type=str, nargs='*', help='solvers, test cases or folders.')
+        parser_r.add_argument('--vertical', '-v', action='store_true', help="use vertical mode.")
         parser_r.add_argument('--all', '-a', action='store_true', help="show all failures.")
         parser_r.add_argument('--none', '-n', action='store_true', help="show none failures.")
         parser_r.set_defaults(func=Main.execute)
