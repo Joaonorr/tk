@@ -16,6 +16,7 @@ import argparse
 import subprocess
 import tempfile
 import io
+import requests
 from subprocess import PIPE
 
 asc2only: bool = False
@@ -1342,6 +1343,19 @@ class Main:
         return 1
 
     @staticmethod
+    def down(args):
+        disc = args.disc
+        index = args.index
+        url = "https://raw.githubusercontent.com/qxcode" + disc + "/moodle/master/base/" + index + "/q.tio"
+        response = requests.get(url, allow_redirects=True)
+        if response.text == "404: Not Found":
+            print("fail: file not found")
+        else:
+            with open(index + ".tio", "w") as f:
+                f.write(response.text)
+            print("file", index + ".tio", "downloaded")
+
+    @staticmethod
     def compile(args):
         if Actions.compile(args.cmd):
             return 0
@@ -1408,10 +1422,10 @@ class Main:
         subparsers = parser.add_subparsers(title='subcommands', help='help for subcommand.')
 
         # list
-        parser_s = subparsers.add_parser('list', parents=[parent_basic], help='show case packs or folders.')
-        parser_s.add_argument('target_list', metavar='T', type=str, nargs='*', help='targets.')
-        parser_s.add_argument('--display', '-d', action="store_true", help='display full test description.')
-        parser_s.set_defaults(func=Main.list)
+        parser_l = subparsers.add_parser('list', parents=[parent_basic], help='show case packs or folders.')
+        parser_l.add_argument('target_list', metavar='T', type=str, nargs='*', help='targets.')
+        parser_l.add_argument('--display', '-d', action="store_true", help='display full test description.')
+        parser_l.set_defaults(func=Main.list)
 
         # run
         parser_r = subparsers.add_parser('run', parents=[parent_basic], help='run you solver.')
@@ -1429,16 +1443,22 @@ class Main:
         parser_b.set_defaults(func=Main.build)
 
         # update
-        parser_b = subparsers.add_parser('update', parents=[parent_manip], help='update a test target.')
-        parser_b.add_argument('target_list', metavar='T', type=str, nargs='+', help='input test targets.')
-        parser_b.add_argument('--cmd', '-c', type=str, help="solver file or command to update outputs.")
-        parser_b.set_defaults(func=Main.update)
+        parser_u = subparsers.add_parser('update', parents=[parent_manip], help='update a test target.')
+        parser_u.add_argument('target_list', metavar='T', type=str, nargs='+', help='input test targets.')
+        parser_u.add_argument('--cmd', '-c', type=str, help="solver file or command to update outputs.")
+        parser_u.set_defaults(func=Main.update)
 
         # compile
         parser_c = subparsers.add_parser('compile', help='compile you solver.')
         parser_c.add_argument('cmd', type=str, help="solver cmd to compile.")
         parser_c.add_argument('--keep', '-k', action='store_true', help="keep all compilation files.")
         parser_c.set_defaults(func=Main.compile)
+
+        # down
+        parser_d = subparsers.add_parser('down', help='download test from remote repository.')
+        parser_d.add_argument('disc', type=str, help="discipline: fup, ed, poo")
+        parser_d.add_argument('index', type=str, help="question index like 025")
+        parser_d.set_defaults(func=Main.down)
 
         parser_tkupdate = subparsers.add_parser('tkupdate', help='update tk script(linux only).')
         parser_tkupdate.set_defaults(func=Main.tkupdate)
