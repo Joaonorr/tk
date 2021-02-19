@@ -246,7 +246,7 @@ class TestWdir(unittest.TestCase):
 
 class TestBrief(unittest.TestCase):
     def test_list_brief(self):
-        tk.Symbol.setAsc2Only(True)
+        tk.Symbol.set_asc_only(True)
         tk.Logger.store()
         param = tk.Param.Basic(None, True, False)
         tk.Actions.list(["data/00"], param)
@@ -349,7 +349,7 @@ class TestDiff(unittest.TestCase):
         self.assertEqual(output, expected)
 
     def test_diff_all_raw(self):
-        tk.Symbol.setAsc2Only(True)
+        tk.Symbol.set_asc_only(True)
         tk.Report.set_terminal_size(100)
         tk.Logger.store()
         param = tk.Param.Basic(None, False, True)

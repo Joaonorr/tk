@@ -16,10 +16,11 @@ import argparse
 import subprocess
 import tempfile
 import io
-import requests
+import urllib.request
 from subprocess import PIPE
 
 asc2only: bool = False
+
 
 class Unit:
     def __init__(self, case: str = "", inp: str = "", outp: str = "", grade: Optional[int] = None, source: str = ""):
@@ -47,8 +48,11 @@ class Symbol:
     newline = u"\u21B5"  # carriage return
     cfill = "_"
 
+    def __init__(self):
+        pass
+
     @staticmethod
-    def setAsc2Only(only: bool):
+    def set_asc_only(only: bool):
         Symbol.neutral = "(.)" if only else "(»)"  # u"\u2610"  # ☐
         Symbol.mark_size = len(Symbol.neutral)
         Symbol.success = "(S)" if only else "(✓)"
@@ -57,8 +61,8 @@ class Symbol:
         Symbol.compilation = "(C)" if only else "(ϲ)"
         Symbol.execution = "(E)" if only else "(ϵ)"
 
-Symbol.setAsc2Only(asc2only) # inicalizacao estatica
 
+Symbol.set_asc_only(asc2only)  # inicalizacao estatica
 
 
 class Solver:
@@ -111,6 +115,9 @@ class Logger:
 
     _store_buffer = IOBuffer()
     _store = False
+
+    def __init__(self):
+        pass
 
     @staticmethod
     def store():
@@ -180,8 +187,11 @@ class Logger:
 class PreScript:
     cmd: str = ""
 
+    def __init__(self):
+        pass
+
     @staticmethod
-    def setCmd(cmd):
+    def set_cmd(cmd):
         PreScript.cmd = cmd
 
     @staticmethod
@@ -189,7 +199,7 @@ class PreScript:
         return PreScript.cmd != ""
 
     @staticmethod
-    def processSource(path: str):
+    def process_source(path: str):
         output_path = tempfile.mkdtemp() + os.sep + "Readme.md"
         cmd = [PreScript.cmd, "--source", path, output_path]
         try:
@@ -200,7 +210,7 @@ class PreScript:
         return output_path
 
     @staticmethod
-    def processSolver(path: str):
+    def process_solver(path: str):
         tempdir = tempfile.mkdtemp()
         output_path = tempdir + os.sep + path.split(os.sep)[-1] + ".out"
         cmd = [PreScript.cmd, "--solver", path, output_path]
@@ -216,9 +226,13 @@ class PreScript:
             exit(1)
         return output_path
 
+
 class Loader:
     regex_tio = r"^ *>>>>>>>> *(.*?)\n(.*?)^ *======== *\n(.*?)^ *<<<<<<<< *\n?"
     regex_vpl = r"^ *[Cc]ase *= *([ \S]*) *\n *input *=(.*?)^ *output *=(.*?)^ *grade *reduction *= *(\S*) *\n?"
+
+    def __init__(self):
+        pass
 
     @staticmethod
     def parse_cio(text, source, crude_mode=False):
@@ -349,7 +363,7 @@ class Loader:
             return Loader.parse_dir(source)
         if os.path.isfile(source):
             if PreScript.exists():
-                source = PreScript.processSource(source)
+                source = PreScript.process_source(source)
             with open(source) as f:
                 content = f.read()
             if source.endswith(".vpl"):
@@ -533,6 +547,10 @@ class LabelFactory:
 
 
 class Runner:
+
+    def __init__(self):
+        pass
+
     class CompileError(Exception):
         pass
 
@@ -545,7 +563,11 @@ class Runner:
         stdout, stderr = p.communicate(input=input_data)
         return p.returncode, stdout, stderr
 
+
 class Compiler:
+
+    def __init__(self):
+        pass
 
     @staticmethod
     def __prepare_java(solver: str) -> str:
@@ -584,7 +606,7 @@ class Compiler:
     @staticmethod
     def prepare_exec(solver: str) -> Tuple[str, bool]:
         if PreScript.exists():
-            solver = PreScript.processSolver(solver)
+            solver = PreScript.process_solver(solver)
 
         if os.sep not in solver and os.path.isfile("." + os.sep + solver):
             solver = "." + os.sep + solver
@@ -617,6 +639,9 @@ class IdentifierType(Enum):
 
 
 class Identifier:
+
+    def __init__(self):
+        pass
 
     @staticmethod
     def get_type(target: str) -> IdentifierType:
@@ -665,6 +690,9 @@ class ExecutionResult(Enum):
 
 class Execution:
 
+    def __init__(self):
+        pass
+
     @staticmethod
     def __process_input(exec_cmd: str, input_data: str) -> str:
         cmd = exec_cmd.split(" ")
@@ -676,7 +704,7 @@ class Execution:
     @staticmethod
     def __fill_user_answers(solver: Solver, unit_list: List[Unit], keep: bool = False) -> None:
         exec_cmd, is_temp_file = Compiler.prepare_exec(solver.path)
-        for i in range(len(unit_list)):
+        for _i in range(len(unit_list)):
             solver.user.append(None)
         for i in range(len(unit_list)):
             solver.user[i] = Execution.__process_input(exec_cmd, unit_list[i].input)
@@ -707,11 +735,11 @@ class Execution:
             solver.error_msg = str(e)
 
 
-
-
-
 class Report:
     __term_width: Optional[int] = None
+
+    def __init__(self):
+        pass
 
     @staticmethod
     def get_terminal_size():
@@ -971,6 +999,10 @@ class PatternLoader:
 
 
 class Writer:
+
+    def __init__(self):
+        pass
+
     @staticmethod
     def to_vpl(unit: Unit):
         text = "case=" + unit.case + "\n"
@@ -1053,6 +1085,10 @@ class Writer:
 
 
 class Replacer:
+
+    def __init__(self):
+        pass
+
     @staticmethod
     def _get_borders(regex, text, options) -> List[str]:
         out = []
@@ -1079,6 +1115,10 @@ class Replacer:
 
 
 class Util:
+
+    def __init__(self):
+        pass
+
     @staticmethod
     def copy_to_temp(folder):
         temp_dir = tempfile.mkdtemp()
@@ -1089,6 +1129,10 @@ class Util:
 
 
 class Param:
+
+    def __init__(self):
+        pass
+
     class DiffMode(Enum):
         FIRST = "MODE: SHOW FIRST FAILURE ONLY"
         NONE = "MODE: SHOW NONE FAILURES"
@@ -1128,6 +1172,10 @@ class Param:
 
 
 class ActionExecute:
+
+    def __init__(self):
+        pass
+
     @staticmethod
     def execute(target_list: List[str], param: Param.Basic) -> List[Tuple[str, int, List[Tuple[str, int]]]]:
         wdir_list = Identifier.mount_wdir_list(target_list, param)
@@ -1235,6 +1283,9 @@ class ActionExecute:
 
 class ActionList:
 
+    def __init__(self):
+        pass
+
     @staticmethod
     def list(target_list: List[str], param: Param.Basic) -> List[Tuple[str, int]]:
         wdir_list = Identifier.mount_wdir_list(target_list, param)
@@ -1270,6 +1321,10 @@ class ActionList:
 
 
 class Actions:
+
+    def __init__(self):
+        pass
+
     @staticmethod
     def compile(solver: str):
         result = False
@@ -1347,13 +1402,12 @@ class Main:
         disc = args.disc
         index = args.index
         url = "https://raw.githubusercontent.com/qxcode" + disc + "/moodle/master/base/" + index + "/q.tio"
-        response = requests.get(url, allow_redirects=True)
-        if response.text == "404: Not Found":
-            print("fail: file not found")
-        else:
-            with open(index + ".tio", "w") as f:
-                f.write(response.text)
+        try:
+            urllib.request.urlretrieve(url, index + ".tio")
             print("file", index + ".tio", "downloaded")
+        except urllib.error.HTTPError:
+            print("fail: file not found")
+
 
     @staticmethod
     def compile(args):
