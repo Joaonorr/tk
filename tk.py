@@ -17,6 +17,7 @@ import subprocess
 import tempfile
 import io
 import urllib.request
+import urllib.error
 from subprocess import PIPE
 
 asc2only: bool = False
@@ -579,12 +580,27 @@ class Compiler:
         return "java " + solver[:-5]  # removing the .java
 
     @staticmethod
+    def __get_extra_c_cpp(solver):
+        path_list = solver.split(os.sep)
+        folder = os.sep.join(path_list[:-1])
+        libs = []
+        with open(solver) as f:
+            first_line = f.read().split("\n")[0]
+            if first_line.startswith("//tk"):
+                libs = first_line.split(" ")[1:]
+        libs = [os.path.join(folder, lib) for lib in libs]
+        return libs
+
+    @staticmethod
     def __prepare_c(solver: str) -> str:
         path_list = solver.split(os.sep)
+
+        libs = Compiler.__get_extra_c_cpp(solver)
+
         path_list[-1] = ".__" + path_list[-1] + ".out"
         exec_path = os.sep.join(path_list)
         cmd = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type", "-Werror"]
-        cmd += ["-fno-diagnostics-color", solver, "-o", exec_path, "-lm", "-lutil"]
+        cmd += libs + ["-fno-diagnostics-color", solver, "-o", exec_path, "-lm", "-lutil"]
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
         if return_code != 0:
             raise Runner.CompileError(stdout + stderr)
@@ -593,11 +609,14 @@ class Compiler:
     @staticmethod
     def __prepare_cpp(solver: str) -> str:
         path_list = solver.split(os.sep)
+
+        libs = Compiler.__get_extra_c_cpp(solver)
+        
         path_list[-1] = ".__" + path_list[-1] + ".out"
         exec_path = os.sep.join(path_list)
         cmd = ["g++", "-std=c++17", "-Werror", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined"]
         cmd += ["-D_GLIBCXX_DEBUG"]
-        cmd += [solver, "-o", exec_path]
+        cmd += libs + [solver, "-o", exec_path]
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
         if return_code != 0:
             raise Runner.CompileError(stdout + stderr)
@@ -1407,7 +1426,6 @@ class Main:
             print("file", index + ".tio", "downloaded")
         except urllib.error.HTTPError:
             print("fail: file not found")
-
 
     @staticmethod
     def compile(args):
