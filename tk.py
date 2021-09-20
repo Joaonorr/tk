@@ -185,6 +185,7 @@ class Logger:
         return Logger._buffer.getvalue()
 
 
+"""
 class PreScript:
     cmd: str = ""
 
@@ -226,6 +227,7 @@ class PreScript:
             print(e)
             exit(1)
         return output_path
+"""
 
 
 class Loader:
@@ -363,8 +365,8 @@ class Loader:
         if " " in source and os.path.isdir(source.split(" ")[0]):
             return Loader.parse_dir(source)
         if os.path.isfile(source):
-            if PreScript.exists():
-                source = PreScript.process_source(source)
+            #  if PreScript.exists():
+            #      source = PreScript.process_source(source)
             with open(source) as f:
                 content = f.read()
             if source.endswith(".vpl"):
@@ -579,60 +581,78 @@ class Compiler:
         solver = solver.split(os.sep)[-1]  # getting only the filename
         return "java " + solver[:-5]  # removing the .java
 
+    """
+        @staticmethod
+        def __get_extra_c_cpp(solver):
+            path_list = solver.split(os.sep)
+            folder = os.sep.join(path_list[:-1])
+            libs = []
+            with open(solver) as f:
+                first_line = f.read().split("\n")[0]
+                if first_line.startswith("//tk"):
+                    libs = first_line.split(" ")[1:]
+            libs = [os.path.join(folder, lib) for lib in libs]
+            return libs
+    """
+
     @staticmethod
-    def __get_extra_c_cpp(solver):
-        path_list = solver.split(os.sep)
-        folder = os.sep.join(path_list[:-1])
-        libs = []
-        with open(solver) as f:
-            first_line = f.read().split("\n")[0]
-            if first_line.startswith("//tk"):
-                libs = first_line.split(" ")[1:]
-        libs = [os.path.join(folder, lib) for lib in libs]
-        return libs
+    def __prepare_multiple_files(solver: str) -> List[str]:
+        return list(map(Compiler.add_dot_bar, solver.split(Identifier.multi_file_separator)))
+
+    @staticmethod
+    def __prepare_hs(solver: str) -> str:
+        solver_files = Compiler.__prepare_multiple_files(solver)
+        source_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.hs"])
+        exec_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.out"])
+        with open(source_path, "w") as f:
+            for solver in solver_files:
+                f.write(open(solver).read() + "\n")
+
+        cmd = ["ghc", "--make", source_path, "-o", exec_path]
+        return_code, stdout, stderr = Runner.subprocess_run(cmd)
+        if return_code != 0:
+            raise Runner.CompileError(stdout + stderr)
+        return exec_path
+
+    @staticmethod
+    def __prepare_c_cpp(solver: str, pre_args: List[str], pos_args: list[str]) -> str:
+        solver_files = Compiler.__prepare_multiple_files(solver)
+        exec_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.out"])
+        cmd = pre_args + solver_files + ["-o", exec_path] + pos_args
+        return_code, stdout, stderr = Runner.subprocess_run(cmd)
+        if return_code != 0:
+            raise Runner.CompileError(stdout + stderr)
+        return exec_path
 
     @staticmethod
     def __prepare_c(solver: str) -> str:
-        path_list = solver.split(os.sep)
-
-        libs = Compiler.__get_extra_c_cpp(solver)
-
-        path_list[-1] = ".__" + path_list[-1] + ".out"
-        exec_path = os.sep.join(path_list)
-        cmd = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type", "-Werror"]
-        cmd += libs + ["-fno-diagnostics-color", solver, "-o", exec_path, "-lm", "-lutil"]
-        return_code, stdout, stderr = Runner.subprocess_run(cmd)
-        if return_code != 0:
-            raise Runner.CompileError(stdout + stderr)
-        return exec_path
+        pre = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type", "-Werror", "-fno-diagnostics-color"]
+        pos = ["-lm", "-lutil"]
+        return Compiler.__prepare_c_cpp(solver, pre, pos)
 
     @staticmethod
     def __prepare_cpp(solver: str) -> str:
-        path_list = solver.split(os.sep)
+        pre = ["g++", "-std=c++17", "-Werror", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined", "-D_GLIBCXX_DEBUG"]
+        pos = []
+        return Compiler.__prepare_c_cpp(solver, pre, pos)
 
-        libs = Compiler.__get_extra_c_cpp(solver)
-        
-        path_list[-1] = ".__" + path_list[-1] + ".out"
-        exec_path = os.sep.join(path_list)
-        cmd = ["g++", "-std=c++17", "-Werror", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined"]
-        cmd += ["-D_GLIBCXX_DEBUG"]
-        cmd += libs + [solver, "-o", exec_path]
-        return_code, stdout, stderr = Runner.subprocess_run(cmd)
-        if return_code != 0:
-            raise Runner.CompileError(stdout + stderr)
-        return exec_path
+
+    @staticmethod
+    def add_dot_bar(solver: str) -> str:
+        if os.sep not in solver and os.path.isfile("." + os.sep + solver):
+            solver = "." + os.sep + solver
+        return solver
 
     @staticmethod
     def prepare_exec(solver: str) -> Tuple[str, bool]:
-        if PreScript.exists():
-            solver = PreScript.process_solver(solver)
+        # if PreScript.exists():
+        #    solver = PreScript.process_solver(solver)
 
-        if os.sep not in solver and os.path.isfile("." + os.sep + solver):
-            solver = "." + os.sep + solver
+        solver = Compiler.add_dot_bar(solver)
         if " " in solver:  # more than one parameter
             return solver, False
         elif solver.endswith(".py"):
-            return "python3 " + solver, False
+            return "python " + solver, False
         elif solver.endswith(".js"):
             return "node " + solver, False
         elif solver.endswith(".java"):
@@ -641,6 +661,9 @@ class Compiler:
         elif solver.endswith(".c"):
             solver_cmd = Compiler.__prepare_c(solver)
             return solver_cmd, True
+        elif solver.endswith(".hs"):
+            solver_cmd = Compiler.__prepare_hs(solver)
+            return solver_cmd, False
         elif solver.endswith(".cpp"):
             solver_cmd = Compiler.__prepare_cpp(solver)
             return solver_cmd, True
@@ -658,6 +681,7 @@ class IdentifierType(Enum):
 
 
 class Identifier:
+    multi_file_separator = ","
 
     def __init__(self):
         pass
@@ -678,8 +702,26 @@ class Identifier:
         else:
             return IdentifierType.SOLVER
 
+    # group targets with colon between then
+    # ['lib.cpp,', 'main.cpp', 'teste.tio']
+    # ['lib.cpp,main.cpp', 'teste.tio']
+    @staticmethod
+    def join_multi_file_solvers(input_list: List[str]) -> List[str]:
+        out = []
+        separator = Identifier.multi_file_separator
+        for entry in input_list:
+            if entry == separator:
+                out[-1] += separator
+            elif len(out) != 0 and out[-1].endswith(separator):
+                out[-1] += entry
+            else:
+                out.append(entry)
+        return out
+
     @staticmethod
     def split_input_list(input_list: List[str]) -> Tuple[List[str], List[str], List[str]]:
+        input_list = Identifier.join_multi_file_solvers(input_list)
+
         folders = [target for target in input_list if Identifier.get_type(target) == IdentifierType.WDIR]
         others = [target for target in input_list if target not in folders]
         solvers = [target for target in others if Identifier.get_type(target) == IdentifierType.SOLVER]
@@ -858,7 +900,7 @@ class Report:
         ta = text_a.split("\n")
         tb = text_b.split("\n")
         size = max(len(ta), len(tb)) - 1
-        if text_b[-1] != '\n':
+        if len(text_b) > 0 and text_b[-1] != '\n':
             size += 1
 
         data = [list(" " * term_width) for _x in range(size)]
