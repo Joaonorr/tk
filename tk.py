@@ -632,7 +632,7 @@ class Compiler:
 
     @staticmethod
     def __prepare_cpp(solver: str) -> str:
-        pre = ["g++", "-std=c++17", "-Werror", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined", "-D_GLIBCXX_DEBUG"]
+        pre = ["g++", "-std=c++20", "-Werror", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined", "-D_GLIBCXX_DEBUG"]
         pos = []
         return Compiler.__prepare_c_cpp(solver, pre, pos)
 
