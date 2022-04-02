@@ -62,6 +62,10 @@ class Symbol:
         Symbol.compilation = "(C)" if only else "(ϲ)"
         Symbol.execution = "(E)" if only else "(ϵ)"
 
+    @staticmethod
+    def get_core_symbol(symbol):
+        return symbol[1]
+
 
 Symbol.set_asc_only(asc2only)  # inicalizacao estatica
 
@@ -329,7 +333,7 @@ class Loader:
     @staticmethod
     def parse_dir(folder) -> List[Unit]:
         pattern_loader = PatternLoader()
-        files = os.listdir(folder)
+        files = sorted(os.listdir(folder))
         matches = pattern_loader.get_file_sources(files)
 
         unit_list: List[Unit] = []
@@ -371,6 +375,49 @@ class Loader:
         else:
             raise FileNotFoundError('warning: unable to find: ' + source)
         return []
+
+
+class Param:
+
+    def __init__(self):
+        pass
+
+    class DiffMode(Enum):
+        FIRST = "MODE: SHOW FIRST FAILURE ONLY"
+        NONE = "MODE: SHOW NONE FAILURES"
+        ALL = "MODE: SHOW ALL FAILURES"
+
+    class Basic:
+        def __init__(self, index: Optional[int] = None, is_brief: bool = False, is_raw: bool = False):
+            self.index = index
+            self.is_brief = is_brief
+            self.is_raw = is_raw
+            self.keep = False
+            self.display = False
+            self.is_vertical = False
+            self.diff_mode = Param.DiffMode.FIRST
+
+        def set_vertical(self, value):
+            self.is_vertical = value
+            return self
+
+        def set_keep(self, value):
+            self.keep = value
+            return self
+
+        def set_display(self, value):
+            self.display = value
+            return self
+
+        def set_diff_mode(self, value):
+            self.diff_mode = value
+            return self
+
+    class Manip:
+        def __init__(self, unlabel: bool = False, to_sort: bool = False, to_number: bool = False):
+            self.unlabel = unlabel
+            self.to_sort = to_sort
+            self.to_number = to_number
 
 
 class Wdir:
@@ -430,7 +477,7 @@ class Wdir:
         return self
 
     def filter(self, index: Optional[int]):
-        if index:
+        if index is not None:
             if 0 <= index < len(self.unit_list):
                 self.unit_list = [self.unit_list[index]]
             else:
@@ -570,20 +617,6 @@ class Compiler:
         solver = solver.split(os.sep)[-1]  # getting only the filename
         return "java " + solver[:-5]  # removing the .java
 
-    """
-        @staticmethod
-        def __get_extra_c_cpp(solver):
-            path_list = solver.split(os.sep)
-            folder = os.sep.join(path_list[:-1])
-            libs = []
-            with open(solver) as f:
-                first_line = f.read().split("\n")[0]
-                if first_line.startswith("//tk"):
-                    libs = first_line.split(" ")[1:]
-            libs = [os.path.join(folder, lib) for lib in libs]
-            return libs
-    """
-
     @staticmethod
     def __prepare_multiple_files(solver: str) -> List[str]:
         return list(map(Compiler.add_dot_bar, solver.split(Identifier.multi_file_separator)))
@@ -678,9 +711,6 @@ class Identifier:
 
     @staticmethod
     def get_type(target: str) -> IdentifierType:
-        #        parts = target.split(" ")
-        #            return IdentifierType.WDIR
-        #        elif len(parts) == 3 and "@" in parts[1] and "@" in parts[2]:
         if os.path.isdir(target):
             return IdentifierType.OBI
         elif target.endswith(".md"):
@@ -717,8 +747,9 @@ class Identifier:
         return solvers, sources
 
     @staticmethod
-    def mount_wdir_list(target_list: List[str], folders: List[str], param):
-        wdir_list = []
+    def mount_wdir_list(target_list: List[str], folders: List[str], param: Param.Basic) -> List[Wdir]:
+
+        wdir_list: List[Wdir] = []
         solvers, sources = Identifier.split_input_list(target_list)
         if len(target_list) == 0 and len(folders) == 0:
             folders = ["."]
@@ -753,10 +784,15 @@ class Execution:
     @staticmethod
     def __fill_user_answers(solver: Solver, unit_list: List[Unit], keep: bool = False) -> None:
         exec_cmd, is_temp_file = Compiler.prepare_exec(solver.path)
+        Logger.write(" ")
         for _i in range(len(unit_list)):
             solver.user.append(None)
         for i in range(len(unit_list)):
             solver.user[i] = Execution.__process_input(exec_cmd, unit_list[i].input)
+            if solver.user[i] == unit_list[i].output:
+                Logger.write(Symbol.get_core_symbol(Symbol.success))
+            else:
+                Logger.write(Symbol.get_core_symbol(Symbol.failure))
         if is_temp_file and not keep:
             if exec_cmd.startswith("java "):
                 for x in [item for item in os.listdir(".") if item.endswith(".class")]:
@@ -1171,49 +1207,6 @@ class Util:
         return temp_dir
 
 
-class Param:
-
-    def __init__(self):
-        pass
-
-    class DiffMode(Enum):
-        FIRST = "MODE: SHOW FIRST FAILURE ONLY"
-        NONE = "MODE: SHOW NONE FAILURES"
-        ALL = "MODE: SHOW ALL FAILURES"
-
-    class Basic:
-        def __init__(self, index: Optional[int] = None, is_brief: bool = False, is_raw: bool = False):
-            self.index = index
-            self.is_brief = is_brief
-            self.is_raw = is_raw
-            self.keep = False
-            self.display = False
-            self.is_vertical = False
-            self.diff_mode = Param.DiffMode.FIRST
-        
-        def set_vertical(self, value):
-            self.is_vertical = value
-            return self
-
-        def set_keep(self, value):
-            self.keep = value
-            return self
-
-        def set_display(self, value):
-            self.display = value
-            return self
-
-        def set_diff_mode(self, value):
-            self.diff_mode = value
-            return self
-
-    class Manip:
-        def __init__(self, unlabel: bool = False, to_sort: bool = False, to_number: bool = False):
-            self.unlabel = unlabel
-            self.to_sort = to_sort
-            self.to_number = to_number
-
-
 class ActionExecute:
 
     def __init__(self):
@@ -1222,9 +1215,16 @@ class ActionExecute:
     @staticmethod
     def execute(target_list: List[str], folders: List[str], param: Param.Basic) \
             -> List[Tuple[str, int, List[Tuple[str, int]]]]:
-        wdir_list = Identifier.mount_wdir_list(target_list, folders, param)
-        resume_list = [wdir.resume() for wdir in wdir_list]
-        sizes = Report.max_just_calc(resume_list)
+
+        # each wdir is a folder with its sources and solvers
+        wdir_list: List[Wdir] = Identifier.mount_wdir_list(target_list, folders, param)
+
+        # description of each wdir
+        resume_list: List[List[str]] = [wdir.resume() for wdir in wdir_list]
+
+        # max size for each entry
+        sizes: List[int] = Report.max_just_calc(resume_list)
+
         for resume, wdir in zip(resume_list, wdir_list):
             ActionExecute.print_resume_begin(resume, sizes)
             ActionExecute.print_solvers(wdir, sizes[3], False)
@@ -1370,23 +1370,6 @@ class Actions:
         pass
 
     @staticmethod
-    def compile(solver: str):
-        result = False
-        Logger.inc_level()
-        try:
-            executable, is_temp = Compiler.prepare_exec(solver)
-            if is_temp:
-                Logger.write("executable ready as " + executable + '\n')
-                result = True
-            else:
-                Logger.write(solver + " cannot be compiled\n")
-        except Runner.CompileError as e:
-            Logger.write("compilation error\n")
-            Logger.write(str(e) + '\n')
-        Logger.dec_level()
-        return result
-
-    @staticmethod
     def list(target_list: List[str], folders: List[str], param: Param.Basic) -> List[Tuple[str, int]]:
         return ActionList.list(target_list, folders, param)
 
@@ -1455,12 +1438,6 @@ class Main:
             print("fail: file not found")
 
     @staticmethod
-    def compile(args):
-        if Actions.compile(args.cmd):
-            return 0
-        return 1
-
-    @staticmethod
     def list(args):
         PatternLoader.pattern = args.pattern
         param = Param.Basic(args.index, args.brief, args.raw).set_display(args.display)
@@ -1502,13 +1479,15 @@ class Main:
         parent_basic.add_argument('--brief', '-b', action='store_true', help="show less information.")
         parent_basic.add_argument('--raw', '-r', action='store_true', help="raw mode, disable  whitespaces rendering.")
         parent_basic.add_argument('--index', '-i', metavar="I", type=int, help='run a specific index.')
-        parent_basic.add_argument('--pattern', '-p', type=str, default='@.in @.sol', help='pattern load/save a folder')
+        parent_basic.add_argument('--pattern', '-p', metavar="P", type=str, default='@.in @.sol',
+                                  help='pattern load/save a folder, default: "@.in @.sol"')
 
         parent_manip = argparse.ArgumentParser(add_help=False)
         parent_manip.add_argument('--unlabel', '-u', action='store_true', help='remove all labels.')
         parent_manip.add_argument('--number', '-n', action='store_true', help='number labels.')
         parent_manip.add_argument('--sort', '-s', action='store_true', help="sort test cases by input size.")
-        parent_manip.add_argument('--pattern', '-p', type=str, default='@.in @.sol', help='pattern to load/save a folder')
+        parent_manip.add_argument('--pattern', '-p', metavar="@.in @.out", type=str, default='@.in @.sol',
+                                  help='pattern load/save a folder, default: "@.in @.sol"')
 
         desc = ("Roda, Converte e Contrói testes de entrada e saída.\n"
                 "Use \"./tk comando -h\" para obter informações do comando específico.\n\n"
@@ -1552,12 +1531,6 @@ class Main:
         parser_u.add_argument('target_list', metavar='T', type=str, nargs='+', help='input test targets.')
         parser_u.add_argument('--cmd', '-c', type=str, help="solver file or command to update outputs.")
         parser_u.set_defaults(func=Main.update)
-
-        # compile
-        parser_c = subparsers.add_parser('compile', help='compile you solver.')
-        parser_c.add_argument('cmd', type=str, help="solver cmd to compile.")
-        parser_c.add_argument('--keep', '-k', action='store_true', help="keep all compilation files.")
-        parser_c.set_defaults(func=Main.compile)
 
         # down
         parser_d = subparsers.add_parser('down', help='download test from remote repository.')
