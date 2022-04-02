@@ -328,18 +328,7 @@ class Loader:
 
     @staticmethod
     def parse_dir(folder) -> List[Unit]:
-        input_pattern = "@.in"
-        output_pattern = "@.sol"
-
-        if " " in folder:
-            parts = folder.split(" ")
-            if len(parts) != 3:
-                raise ValueError('Folder Pattern Wrong. Use something like "dir @.in @.sol"')
-            folder = parts[0]
-            input_pattern = parts[1]
-            output_pattern = parts[2]
-
-        pattern_loader = PatternLoader(input_pattern, output_pattern)
+        pattern_loader = PatternLoader()
         files = os.listdir(folder)
         matches = pattern_loader.get_file_sources(files)
 
@@ -362,7 +351,7 @@ class Loader:
 
     @staticmethod
     def parse_source(source: str) -> List[Unit]:
-        if " " in source and os.path.isdir(source.split(" ")[0]):
+        if os.path.isdir(source):
             return Loader.parse_dir(source)
         if os.path.isfile(source):
             #  if PreScript.exists():
@@ -626,16 +615,17 @@ class Compiler:
 
     @staticmethod
     def __prepare_c(solver: str) -> str:
-        pre = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type", "-Werror", "-fno-diagnostics-color"]
+        pre = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type", "-Werror",
+               "-fno-diagnostics-color"]
         pos = ["-lm", "-lutil"]
         return Compiler.__prepare_c_cpp(solver, pre, pos)
 
     @staticmethod
     def __prepare_cpp(solver: str) -> str:
-        pre = ["g++", "-std=c++20", "-Werror", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined", "-D_GLIBCXX_DEBUG"]
+        pre = ["g++", "-std=c++20", "-Werror", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined",
+               "-D_GLIBCXX_DEBUG"]
         pos = []
         return Compiler.__prepare_c_cpp(solver, pre, pos)
-
 
     @staticmethod
     def add_dot_bar(solver: str) -> str:
@@ -688,10 +678,10 @@ class Identifier:
 
     @staticmethod
     def get_type(target: str) -> IdentifierType:
-        parts = target.split(" ")
+        #        parts = target.split(" ")
+        #            return IdentifierType.WDIR
+        #        elif len(parts) == 3 and "@" in parts[1] and "@" in parts[2]:
         if os.path.isdir(target):
-            return IdentifierType.WDIR
-        elif len(parts) == 3 and "@" in parts[1] and "@" in parts[2]:
             return IdentifierType.OBI
         elif target.endswith(".md"):
             return IdentifierType.MD
@@ -719,20 +709,18 @@ class Identifier:
         return out
 
     @staticmethod
-    def split_input_list(input_list: List[str]) -> Tuple[List[str], List[str], List[str]]:
+    def split_input_list(input_list: List[str]) -> Tuple[List[str], List[str]]:
         input_list = Identifier.join_multi_file_solvers(input_list)
 
-        folders = [target for target in input_list if Identifier.get_type(target) == IdentifierType.WDIR]
-        others = [target for target in input_list if target not in folders]
-        solvers = [target for target in others if Identifier.get_type(target) == IdentifierType.SOLVER]
-        sources = [target for target in others if target not in solvers]
-        return solvers, sources, folders
+        solvers = [target for target in input_list if Identifier.get_type(target) == IdentifierType.SOLVER]
+        sources = [target for target in input_list if target not in solvers]
+        return solvers, sources
 
     @staticmethod
-    def mount_wdir_list(target_list: List[str], param):
+    def mount_wdir_list(target_list: List[str], folders: List[str], param):
         wdir_list = []
-        solvers, sources, folders = Identifier.split_input_list(target_list)
-        if len(target_list) == 0:
+        solvers, sources = Identifier.split_input_list(target_list)
+        if len(target_list) == 0 and len(folders) == 0:
             folders = ["."]
         if sources or solvers:
             wdir_list.append(Wdir(".").sources(sources).solvers(solvers).parse_sources().filter(param.index))
@@ -1006,14 +994,12 @@ class FileSource:
 
 
 class PatternLoader:
+    pattern: str = ""
 
-    def __init__(self, input_pattern: str, output_pattern: str):
-        if input_pattern == "" or input_pattern == "@":
-            input_pattern = "@.in"
-        if output_pattern == "" or output_pattern == "@":
-            output_pattern = "@.sol"
-        self.input_pattern = input_pattern
-        self.output_pattern = output_pattern
+    def __init__(self):
+        parts = PatternLoader.pattern.split(" ")
+        self.input_pattern = parts[0]
+        self.output_pattern = parts[1] if len(parts) > 1 else ""
         self._check_pattern()
 
     def _check_pattern(self):
@@ -1113,17 +1099,13 @@ class Writer:
             Logger.dec_level()
             return False
 
-        def save_dir(_target, _unit_list):
-            folder, ipat, opat = _target.split(" ")
-            if os.path.isdir(folder) or os.path.isfile(folder):
-                Logger.write("fail: build dir now allowed to overwrite file or directory\n")
-            else:
-                os.mkdir(folder)
-                pattern_loader = PatternLoader(ipat, opat)
-                number = 0
-                for unit in _unit_list:
-                    Writer.save_dir_files(folder, pattern_loader, str(number).zfill(2), unit)
-                    number += 1
+        def save_dir(_target: str, _unit_list):
+            folder = _target
+            pattern_loader = PatternLoader()
+            number = 0
+            for unit in _unit_list:
+                Writer.save_dir_files(folder, pattern_loader, str(number).zfill(2), unit)
+                number += 1
 
         def save_file(_target, _unit_list):
             exists = os.path.isfile(_target)
@@ -1238,8 +1220,9 @@ class ActionExecute:
         pass
 
     @staticmethod
-    def execute(target_list: List[str], param: Param.Basic) -> List[Tuple[str, int, List[Tuple[str, int]]]]:
-        wdir_list = Identifier.mount_wdir_list(target_list, param)
+    def execute(target_list: List[str], folders: List[str], param: Param.Basic) \
+            -> List[Tuple[str, int, List[Tuple[str, int]]]]:
+        wdir_list = Identifier.mount_wdir_list(target_list, folders, param)
         resume_list = [wdir.resume() for wdir in wdir_list]
         sizes = Report.max_just_calc(resume_list)
         for resume, wdir in zip(resume_list, wdir_list):
@@ -1348,8 +1331,8 @@ class ActionList:
         pass
 
     @staticmethod
-    def list(target_list: List[str], param: Param.Basic) -> List[Tuple[str, int]]:
-        wdir_list = Identifier.mount_wdir_list(target_list, param)
+    def list(target_list: List[str], folders: List[str], param: Param.Basic) -> List[Tuple[str, int]]:
+        wdir_list = Identifier.mount_wdir_list(target_list, folders, param)
         resume_list = [wdir.resume() for wdir in wdir_list]
         sizes = Report.max_just_calc(resume_list)
         headers_filler = ActionList.calc_filler(wdir_list)
@@ -1404,12 +1387,13 @@ class Actions:
         return result
 
     @staticmethod
-    def list(target_list: List[str], param: Param.Basic) -> List[Tuple[str, int]]:
-        return ActionList.list(target_list, param)
+    def list(target_list: List[str], folders: List[str], param: Param.Basic) -> List[Tuple[str, int]]:
+        return ActionList.list(target_list, folders, param)
 
     @staticmethod
-    def execute(target_list: List[str], param: Param.Basic) -> List[Tuple[str, int, List[Tuple[str, int]]]]:
-        return ActionExecute.execute(target_list, param)
+    def execute(target_list: List[str], folders: List[str], param: Param.Basic) -> \
+            List[Tuple[str, int, List[Tuple[str, int]]]]:
+        return ActionExecute.execute(target_list, folders, param)
 
     @staticmethod
     def build(target_out: str, source_list: List[str], param: Param.Manip, to_force: bool) -> bool:
@@ -1447,6 +1431,7 @@ class Actions:
 class Main:
     @staticmethod
     def execute(args):
+        PatternLoader.pattern = args.pattern
         param = Param.Basic(args.index, args.brief, args.raw)
         if args.vertical:
             param.set_vertical(True)
@@ -1454,7 +1439,7 @@ class Main:
             param.set_diff_mode(Param.DiffMode.ALL)
         elif args.none:
             param.set_diff_mode(Param.DiffMode.NONE)
-        if Actions.execute(args.target_list, param):
+        if Actions.execute(args.target_list, args.folders, param):
             return 0
         return 1
 
@@ -1477,16 +1462,20 @@ class Main:
 
     @staticmethod
     def list(args):
-        Actions.list(args.target_list, Param.Basic(args.index, args.brief, args.raw).set_display(args.display))
+        PatternLoader.pattern = args.pattern
+        param = Param.Basic(args.index, args.brief, args.raw).set_display(args.display)
+        Actions.list(args.target_list, args.folders, param)
         return 0
 
     @staticmethod
     def build(args):
+        PatternLoader.pattern = args.pattern
         Actions.build(args.target, args.target_list, Param.Manip(args.unlabel, args.sort, args.number), args.force)
         return 0
 
     @staticmethod
     def update(args):
+        PatternLoader.pattern = args.pattern
         Actions.update(args.target_list, Param.Manip(args.unlabel, args.sort, args.number), args.cmd)
         return 0
 
@@ -1513,13 +1502,13 @@ class Main:
         parent_basic.add_argument('--brief', '-b', action='store_true', help="show less information.")
         parent_basic.add_argument('--raw', '-r', action='store_true', help="raw mode, disable  whitespaces rendering.")
         parent_basic.add_argument('--index', '-i', metavar="I", type=int, help='run a specific index.')
-        parent_basic.add_argument('--pre', '-p', type=str, help="preprocess script")
+        parent_basic.add_argument('--pattern', '-p', type=str, default='@.in @.sol', help='pattern load/save a folder')
 
         parent_manip = argparse.ArgumentParser(add_help=False)
         parent_manip.add_argument('--unlabel', '-u', action='store_true', help='remove all labels.')
         parent_manip.add_argument('--number', '-n', action='store_true', help='number labels.')
         parent_manip.add_argument('--sort', '-s', action='store_true', help="sort test cases by input size.")
-        parent_manip.add_argument('--pre', '-p', type=str, help="preprocess script")
+        parent_manip.add_argument('--pattern', '-p', type=str, default='@.in @.sol', help='pattern to load/save a folder')
 
         desc = ("Roda, Converte e Contrói testes de entrada e saída.\n"
                 "Use \"./tk comando -h\" para obter informações do comando específico.\n\n"
@@ -1539,11 +1528,13 @@ class Main:
         parser_l = subparsers.add_parser('list', parents=[parent_basic], help='show case packs or folders.')
         parser_l.add_argument('target_list', metavar='T', type=str, nargs='*', help='targets.')
         parser_l.add_argument('--display', '-d', action="store_true", help='display full test description.')
+        parser_l.add_argument('--folders', '-f', metavar='T', type=str, nargs='+', help='folder list')
         parser_l.set_defaults(func=Main.list)
 
         # run
         parser_r = subparsers.add_parser('run', parents=[parent_basic], help='run you solver.')
         parser_r.add_argument('target_list', metavar='T', type=str, nargs='*', help='solvers, test cases or folders.')
+        parser_r.add_argument('--folders', '-f', metavar='T', type=str, nargs='+', help='folder list')
         parser_r.add_argument('--vertical', '-v', action='store_true', help="use vertical mode.")
         parser_r.add_argument('--all', '-a', action='store_true', help="show all failures.")
         parser_r.add_argument('--none', '-n', action='store_true', help="show none failures.")
@@ -1579,7 +1570,7 @@ class Main:
 
         args = parser.parse_args()
         if len(sys.argv) == 1:
-            Actions.execute([""], Param.Basic())
+            Actions.execute([""], [], Param.Basic())
         else:
             try:
                 args.func(args)
