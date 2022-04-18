@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# exec pip install termcolor in your system to enable colors
+
 import sys
 try:
     from termcolor import colored
@@ -751,11 +753,11 @@ class Identifier:
 
         wdir_list: List[Wdir] = []
         solvers, sources = Identifier.split_input_list(target_list)
-        if len(target_list) == 0 and len(folders) == 0:
+        if len(target_list) == 0 and folders is None:
             folders = ["."]
         if sources or solvers:
             wdir_list.append(Wdir(".").sources(sources).solvers(solvers).parse_sources().filter(param.index))
-        if folders:
+        if folders is not None:
             wdir_list += [Wdir(f).load_solvers().load_sources().parse_sources().filter(param.index) for f in folders]
         return wdir_list
 
@@ -774,7 +776,7 @@ class Execution:
         pass
 
     @staticmethod
-    def __process_input(exec_cmd: str, input_data: str) -> str:
+    def __execute_single_case(exec_cmd: str, input_data: str) -> str:
         cmd = exec_cmd.split(" ")
         return_code, stdout, stderr = Runner.subprocess_run(cmd, input_data)
         if return_code != 0:
@@ -782,13 +784,12 @@ class Execution:
         return stdout
 
     @staticmethod
-    def __fill_user_answers(solver: Solver, unit_list: List[Unit], keep: bool = False) -> None:
+    def __exec_and_check(solver: Solver, unit_list: List[Unit], keep: bool = False) -> None:
         exec_cmd, is_temp_file = Compiler.prepare_exec(solver.path)
-        Logger.write(" ")
         for _i in range(len(unit_list)):
             solver.user.append(None)
         for i in range(len(unit_list)):
-            solver.user[i] = Execution.__process_input(exec_cmd, unit_list[i].input)
+            solver.user[i] = Execution.__execute_single_case(exec_cmd, unit_list[i].input)
             if solver.user[i] == unit_list[i].output:
                 Logger.write(Symbol.get_core_symbol(Symbol.success))
             else:
@@ -807,7 +808,7 @@ class Execution:
     @staticmethod
     def execute_solver(solver: Solver, unit_list: List[Unit], keep: bool = False) -> None:
         try:
-            Execution.__fill_user_answers(solver, unit_list, keep)
+            Execution.__exec_and_check(solver, unit_list, keep)
             if Execution.__check_all_answers_right(solver, unit_list):
                 solver.result = ExecutionResult.SUCCESS
             else:
@@ -989,6 +990,8 @@ class Report:
             if str_user:
                 output.write(Report.centralize("USER OUTPUT", dotted) + "\n")
                 output.write(str_user)
+                if not str_user.endswith("\n"):
+                    output.write("\n")
         else:
             output.write(Report.centralize("   ", Symbol.hbar, " ", " ") + "\n")
             output.write(mount_side_title(title, title, " ", vertical_separator) + "\n")
@@ -1109,6 +1112,8 @@ class Writer:
         text += '\n' + unit.input
         text += "========\n"
         text += unit.output
+        if unit.output != '' and unit.output[-1] != '\n':
+            text += '\n'
         text += "<<<<<<<<\n"
         return text
 
@@ -1247,37 +1252,17 @@ class ActionExecute:
         Logger.write(Report.format_resume(_resume))
 
     @staticmethod
-    def print_solver_i(solver_list: List[Solver], i: int, total_size: int, acc: int):
-        if i == 0:
-            filled_size = len(", ".join([Symbol.success + solver.filename for solver in solver_list]))
-            _acc = (total_size - filled_size) / 2
-            acc = int(_acc)
-            Logger.write(" [" + Symbol.cfill * acc)
-        solver = solver_list[i]
-        Logger.write(solver.get_mark() + solver.filename)
-        acc += len(solver.get_mark() + solver.filename)
-        if i != len(solver_list) - 1:
-            Logger.write(", ")
-            acc += 2
-        if i == len(solver_list) - 1:
-            if solver_list[0].result == ExecutionResult.UNTESTED:
-                final_mark = Symbol.neutral
-            else:
-                passed = len([solver for solver in solver_list if solver.result == ExecutionResult.SUCCESS])
-                final_mark = Symbol.success if passed == len(solver_list) else Symbol.failure
-            Logger.write((total_size - acc) * Symbol.cfill + "] " + final_mark + "\n")
-        return acc
-
-    @staticmethod
     def print_solvers(wdir: Wdir, total_size: int, only_show: bool = False):
-        acc = 0
+        acc = 0  # line size account
         if len(wdir.solver_list) == 0:
             Logger.write(" [" + Symbol.failure.center(total_size, Symbol.cfill) + "] " + Symbol.failure + "\n")
             return
-        for i, solver in enumerate(wdir.solver_list):
+        for solver in wdir.solver_list:
+            Logger.write(" [")
             if not only_show:
                 Execution.execute_solver(solver, wdir.unit_list)
-            acc = ActionExecute.print_solver_i(wdir.solver_list, i, total_size, acc)
+            Logger.write(" " + solver.filename + " " + solver.get_mark() + "]")
+        Logger.write("\n")
 
     @staticmethod
     def report_failure(solver: Solver, unit_list: List[Unit]) -> str:
@@ -1552,4 +1537,7 @@ class Main:
 
 
 if __name__ == '__main__':
-    Main.main()
+    try:
+        Main.main()
+    except KeyboardInterrupt:
+        Logger.write("\n\nKeyboard Interrupt\n")
