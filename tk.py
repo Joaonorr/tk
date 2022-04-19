@@ -191,51 +191,6 @@ class Logger:
         return Logger._buffer.getvalue()
 
 
-"""
-class PreScript:
-    cmd: str = ""
-
-    def __init__(self):
-        pass
-
-    @staticmethod
-    def set_cmd(cmd):
-        PreScript.cmd = cmd
-
-    @staticmethod
-    def exists():
-        return PreScript.cmd != ""
-
-    @staticmethod
-    def process_source(path: str):
-        output_path = tempfile.mkdtemp() + os.sep + "Readme.md"
-        cmd = [PreScript.cmd, "--source", path, output_path]
-        try:
-            Runner.subprocess_run(cmd)
-        except BaseException as e:
-            print(e)
-            exit(1)
-        return output_path
-
-    @staticmethod
-    def process_solver(path: str):
-        tempdir = tempfile.mkdtemp()
-        output_path = tempdir + os.sep + path.split(os.sep)[-1] + ".out"
-        cmd = [PreScript.cmd, "--solver", path, output_path]
-        try:
-            return_code, _stdout, _stderr = Runner.subprocess_run(cmd)
-            if return_code == 1:
-                return path
-            elif return_code == 2:
-                print(_stdout)
-                exit(1)
-        except BaseException as e:
-            print(e)
-            exit(1)
-        return output_path
-"""
-
-
 class Loader:
     regex_tio = r"^ *>>>>>>>> *(.*?)\n(.*?)^ *======== *\n(.*?)^ *<<<<<<<< *\n?"
     regex_vpl = r"^ *[Cc]ase *= *([ \S]*) *\n *input *=(.*?)^ *output *=(.*?)^ *grade *reduction *= *(\S*) *\n?"
@@ -650,14 +605,14 @@ class Compiler:
 
     @staticmethod
     def __prepare_c(solver: str) -> str:
-        pre = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type", "-Werror",
+        pre = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type",
                "-fno-diagnostics-color"]
         pos = ["-lm", "-lutil"]
         return Compiler.__prepare_c_cpp(solver, pre, pos)
 
     @staticmethod
     def __prepare_cpp(solver: str) -> str:
-        pre = ["g++", "-std=c++20", "-Werror", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined",
+        pre = ["g++", "-std=c++20", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined",
                "-D_GLIBCXX_DEBUG"]
         pos = []
         return Compiler.__prepare_c_cpp(solver, pre, pos)
@@ -954,7 +909,7 @@ class Report:
         _user_list = user_list if user_list else [None] * len(unit_list)
         for user, unit in zip(_user_list, unit_list):
             output.write(Report.__show_unit(user, unit, is_raw, is_vertical))
-        if is_raw or not user_list:
+        if is_raw or not user_list or is_vertical:
             output.write(Report.centralize(Symbol.hbar, Symbol.hbar) + "\n")
         else:
             output.write(Report.centralize("   ", Symbol.hbar, " ", " ") + "\n")
@@ -1399,6 +1354,8 @@ class Actions:
 class Main:
     @staticmethod
     def execute(args):
+        if args.width is not None:
+            Report.set_terminal_size(args.width)
         PatternLoader.pattern = args.pattern
         param = Param.Basic(args.index, args.brief, args.raw)
         if args.vertical:
@@ -1413,6 +1370,8 @@ class Main:
 
     @staticmethod
     def down(args):
+        if args.width is not None:
+            Report.set_terminal_size(args.width)
         disc = args.disc
         index = args.index
         url = "https://raw.githubusercontent.com/qxcode" + disc + "/moodle/master/base/" + index + "/q.tio"
@@ -1424,6 +1383,8 @@ class Main:
 
     @staticmethod
     def list(args):
+        if args.width is not None:
+            Report.set_terminal_size(args.width)
         PatternLoader.pattern = args.pattern
         param = Param.Basic(args.index, args.brief, args.raw).set_display(args.display)
         Actions.list(args.target_list, args.folders, param)
@@ -1431,12 +1392,16 @@ class Main:
 
     @staticmethod
     def build(args):
+        if args.width is not None:
+            Report.set_terminal_size(args.width)
         PatternLoader.pattern = args.pattern
         Actions.build(args.target, args.target_list, Param.Manip(args.unlabel, args.sort, args.number), args.force)
         return 0
 
     @staticmethod
     def update(args):
+        if args.width is not None:
+            Report.set_terminal_size(args.width)
         PatternLoader.pattern = args.pattern
         Actions.update(args.target_list, Param.Manip(args.unlabel, args.sort, args.number), args.cmd)
         return 0
@@ -1461,6 +1426,7 @@ class Main:
     @staticmethod
     def main():
         parent_basic = argparse.ArgumentParser(add_help=False)
+        parent_basic.add_argument('--width', '-w', type=int, help="term width")
         parent_basic.add_argument('--brief', '-b', action='store_true', help="show less information.")
         parent_basic.add_argument('--raw', '-r', action='store_true', help="raw mode, disable  whitespaces rendering.")
         parent_basic.add_argument('--index', '-i', metavar="I", type=int, help='run a specific index.')
@@ -1468,6 +1434,7 @@ class Main:
                                   help='pattern load/save a folder, default: "@.in @.sol"')
 
         parent_manip = argparse.ArgumentParser(add_help=False)
+        parent_manip.add_argument('--width', '-w', type=int, help="term width.")
         parent_manip.add_argument('--unlabel', '-u', action='store_true', help='remove all labels.')
         parent_manip.add_argument('--number', '-n', action='store_true', help='number labels.')
         parent_manip.add_argument('--sort', '-s', action='store_true', help="sort test cases by input size.")
@@ -1541,3 +1508,4 @@ if __name__ == '__main__':
         Main.main()
     except KeyboardInterrupt:
         Logger.write("\n\nKeyboard Interrupt\n")
+
