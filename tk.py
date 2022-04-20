@@ -1370,8 +1370,6 @@ class Main:
 
     @staticmethod
     def down(args):
-        if args.width is not None:
-            Report.set_terminal_size(args.width)
         disc = args.disc
         index = args.index
         url = "https://raw.githubusercontent.com/qxcode" + disc + "/moodle/master/base/" + index + "/q.tio"
