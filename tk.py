@@ -1465,49 +1465,68 @@ class Main:
         return 1
 
     @staticmethod
+    def save_as(file_url, filename) -> bool:
+        try:
+            urllib.request.urlretrieve(file_url, filename)
+        except urllib.error.HTTPError as e:
+            return False
+        return True
+
+    @staticmethod
+    def create_file(content, path, label = ""):
+        with open(path, "w") as f:
+            f.write(content)
+        print(path, label)
+
+    @staticmethod
+    def unpack_json(loaded, index):
+        # extracting all files to folder
+        for entry in loaded["upload"]:
+            if (entry["name"] == "vpl_evaluate.cases"):
+                Main.create_file(entry["contents"], os.path.join(index, "cases.tio"))
+
+        for entry in loaded["keep"]:
+            Main.create_file(entry["contents"], os.path.join(index, entry["name"]))
+
+        for entry in loaded["required"]:
+            Main.create_file(entry["contents"], os.path.join(index, entry["name"]), "(Required)")
+
+    @staticmethod
     def down(args):
         disc = args.disc
         index = args.index
+        ext = args.extension
+
         # create dir
         if not os.path.exists(index):
             os.mkdir(index)
 
         cache_url = "https://raw.githubusercontent.com/qxcode" + disc + "/arcade/master/base/" + index + "/.cache/"
-        # print(cache_url)
 
-        try:
-            readme_url = cache_url + "Readme.md"
-            readme_path = os.path.join(index, "Readme.md")
-            urllib.request.urlretrieve(readme_url, readme_path)
-            # print("file", readme_url, "downloaded")
+        if Main.save_as(cache_url + "Readme.md", index + os.sep + "Readme.md"):
+            print(index + os.sep + "Readme.md")
+        else:
+            print("Problem not found")
+            return
 
-            mapi_url = cache_url + "mapi.json"
-            mapi_path = os.path.join(index, "mapi.json")
-            urllib.request.urlretrieve(mapi_url, mapi_path)
-            # print("file", mapi_path, "downloaded")
-
-            #open json file
-            with open(mapi_path) as f:
-                loaded = json.load(f)
-            os.remove(mapi_path)
+        mapi_path = os.path.join(index + "mapi.json")
+        if not Main.save_as(cache_url + "mapi.json", mapi_path):
+            print("Problem not found")
+            return
             
-            # extracting all files to folder
-            for entry in loaded["upload"]:
-                if (entry["name"] == "vpl_evaluate.cases"):
-                    with open(os.path.join(index, "q.tio"), "w") as f:
-                        f.write(entry["contents"])
-                    # print("file", os.path.join(index, "q.tio"), "created")
+        with open(mapi_path) as f:
+            loaded = json.load(f)
+        os.remove(mapi_path)
 
-            for entry in loaded["keep"]:
-                with open(os.path.join(index, entry["name"]), "w") as f:
-                    f.write(entry["contents"])
+        Main.unpack_json(loaded, index)
 
-            for entry in loaded["required"]:
-                with open(os.path.join(index, entry["name"]), "w") as f:
-                    f.write(entry["contents"])
-
-        except urllib.error.HTTPError:
-            print("fail: file not found")
+        if len(loaded["required"]) == 0:
+            draft_path =  os.path.join(index, "solver." + ext)
+            if Main.save_as(cache_url + "solver_draft." + ext, draft_path):
+                print(draft_path, "(Draft)")
+            else:
+                open(draft_path, "w")
+                print(draft_path, "(Empty)")
 
     @staticmethod
     def list(args):
@@ -1614,8 +1633,9 @@ class Main:
 
         # down
         parser_d = subparsers.add_parser('down', help='download test from remote repository.')
-        parser_d.add_argument('disc', type=str, help="discipline: fup, ed, poo")
-        parser_d.add_argument('index', type=str, help="question index like 025")
+        parser_d.add_argument('disc', type=str, help=" [ fup | ed | poo ]")
+        parser_d.add_argument('index', type=str, help="3 digits label like 025")
+        parser_d.add_argument('extension', type=str, help="[ cpp | js | py | java | c ]")
         parser_d.set_defaults(func=Main.down)
 
         parser_tkupdate = subparsers.add_parser('tkupdate', help='update tk script(linux only).')
