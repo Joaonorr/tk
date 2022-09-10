@@ -3,6 +3,8 @@
 
 # exec pip install termcolor in your system to enable colors
 
+from __future__ import annotations
+
 import sys
 try:
     from termcolor import colored
@@ -20,6 +22,7 @@ import tempfile
 import io
 import urllib.request
 import urllib.error
+import json
 from subprocess import PIPE
 
 asc2only: bool = False
@@ -47,8 +50,8 @@ class Symbol:
     execution = ""
     hbar = "─"
     vbar = "│"
-    whitespace = u"\u2E31"  # interpunct
-    newline = u"\u21B5"  # carriage return
+    whitespace = "\u2E31"  # interpunct
+    newline = "\u21B5"  # carriage return
     cfill = "_"
 
     def __init__(self):
@@ -191,9 +194,95 @@ class Logger:
         return Logger._buffer.getvalue()
 
 
+class VplParser:
+    @staticmethod
+    def finish(text):
+        return text if text.endswith("\n") else text + "\n"
+
+    @staticmethod
+    def unwrap(text):
+        while text.endswith("\n"):
+            text = text[:-1]
+        if text.startswith("\"") and text.endswith("\""):
+            text = text[1:-1]
+        return VplParser.finish(text)
+
+    @staticmethod
+    class CaseData:
+        def __init__(self, case="", inp="", outp="", grade: Optional[int] = None):
+            self.case: str = case
+            self.input: str = VplParser.finish(inp)
+            self.output: str = VplParser.unwrap(VplParser.finish(outp))
+            self.grade: Optional[int] = grade
+
+        def __str__(self):
+            return "case=" + self.case + '\n' \
+                   + "input=" + self.input \
+                   + "output=" + self.output \
+                   + "gr=" + str(self.grade)
+
+    regex_vpl_basic = r"case= *([ \S]*) *\n *input *=(.*?)^ *output *=(.*)"
+    regex_vpl_extended = r"case= *([ \S]*) *\n *input *=(.*?)^ *output *=(.*?)^ *grade *reduction *= *(\S*)% *\n?"
+
+    @staticmethod
+    def filter_quotes(x):
+        return x[1:-2] if x.startswith('"') else x
+
+    @staticmethod
+    def split_cases(text: str) -> List[str]:
+        regex = r"^ *[Cc]ase *="
+        subst = "case="
+        text = re.sub(regex, subst, text, 0, re.MULTILINE | re.DOTALL)
+        return ["case=" + t for t in text.split("case=")][1:]
+
+    @staticmethod
+    def extract_extended(text) -> Optional[CaseData]:
+        f = re.match(VplParser.regex_vpl_extended, text, re.MULTILINE | re.DOTALL)
+        if f is None:
+            return None
+        try:
+            gr = int(f.group(4))
+        except ValueError:
+            gr = None
+        return VplParser.CaseData(f.group(1), f.group(2), f.group(3), gr)
+
+    @staticmethod
+    def extract_basic(text) -> Optional[CaseData]:
+        m = re.match(VplParser.regex_vpl_basic, text, re.MULTILINE | re.DOTALL)
+        if m is None:
+            return None
+        return VplParser.CaseData(m.group(1), m.group(2), m.group(3), None)
+
+    @staticmethod
+    def parse_vpl(content: str) -> List[CaseData]:
+        text_cases = VplParser.split_cases(content)
+        seq: List[VplParser.CaseData] = []
+
+        for text in text_cases:
+            case = VplParser.extract_extended(text)
+            if case is not None:
+                seq.append(case)
+                continue
+            case = VplParser.extract_basic(text)
+            if case is not None:
+                seq.append(case)
+                continue
+            print("invalid case: " + text)
+            exit(1)
+        return seq
+
+    @staticmethod
+    def to_vpl(unit: CaseData):
+        text = "case=" + unit.case + "\n"
+        text += "input=" + unit.input
+        text += "output=\"" + unit.output + "\"\n"
+        if unit.grade is not None:
+            text += "grade reduction=" + str(unit.grade) + "%\n"
+        return text
+
+
 class Loader:
     regex_tio = r"^ *>>>>>>>> *(.*?)\n(.*?)^ *======== *\n(.*?)^ *<<<<<<<< *\n?"
-    regex_vpl = r"^ *[Cc]ase *= *([ \S]*) *\n *input *=(.*?)^ *output *=(.*?)^ *grade *reduction *= *(\S*) *\n?"
 
     def __init__(self):
         pass
@@ -254,19 +343,15 @@ class Loader:
     @staticmethod
     def parse_tio(text: str, source: str = "") -> List[Unit]:
         def parse_case_grade(value: str) -> Tuple[str, Optional[int]]:
-            _grade: Optional[int] = 100
+            _grade: Optional[int] = None
             if value.endswith("%"):
-                _case = " ".join(value.split(" ")[:-1])
-                gr = value.split(" ")[-1][:-1]
-                if gr == '!' or gr == '':
-                    _grade = None
-                else:
-                    try:
-                        _grade = int(gr)
-                    except ValueError:
-                        pass
-                return _case, _grade
-            return value, 100
+                value = " ".join(value.split(" ")[:-1])  # todas as palavras menos a ultima
+                gr = value.split(" ")[-1][:-1]           # ultima palavra sem %
+                try:
+                    _grade = int(gr)
+                except ValueError:
+                    pass
+            return value, _grade
 
         matches = re.findall(Loader.regex_tio, text, re.MULTILINE | re.DOTALL)
         unit_list = []
@@ -277,15 +362,11 @@ class Loader:
 
     @staticmethod
     def parse_vpl(text: str, source: str = "") -> List[Unit]:
-        matches = re.findall(Loader.regex_vpl, text, re.MULTILINE | re.DOTALL)
-
-        def filter_quotes(x):
-            return x[1:-2] if x.startswith('"') else x
-
-        def filter_grade(x):
-            return None if x == "" else int(x[:-1])
-
-        return [Unit(m[0], m[1], filter_quotes(m[2]), filter_grade(m[3]), source) for m in matches]
+        data_list = VplParser.parse_vpl(text)
+        output: List[Unit] = []
+        for m in data_list:
+            output.append(Unit(m.case, m.input, m.output, m.grade, source))
+        return output
 
     @staticmethod
     def parse_dir(folder) -> List[Unit]:
@@ -334,39 +415,52 @@ class Loader:
         return []
 
 
+class DiffMode(Enum):
+    FIRST = "MODE: SHOW FIRST FAILURE ONLY"
+    NONE = "MODE: SHOW NONE FAILURES"
+    ALL = "MODE: SHOW ALL FAILURES"
+
+
 class Param:
 
     def __init__(self):
         pass
 
-    class DiffMode(Enum):
-        FIRST = "MODE: SHOW FIRST FAILURE ONLY"
-        NONE = "MODE: SHOW NONE FAILURES"
-        ALL = "MODE: SHOW ALL FAILURES"
-
     class Basic:
-        def __init__(self, index: Optional[int] = None, is_brief: bool = False, is_raw: bool = False):
-            self.index = index
-            self.is_brief = is_brief
-            self.is_raw = is_raw
+        def __init__(self):
+            self.index: Optional[int] = None
+            self.label_pattern: Optional[str] = None
+            self.is_raw: bool = False
             self.keep = False
             self.display = False
             self.is_vertical = False
-            self.diff_mode = Param.DiffMode.FIRST
+            self.diff_mode = DiffMode.FIRST
 
-        def set_vertical(self, value):
+        def set_index(self, value: Optional[int]):
+            self.index = value
+            return self
+
+        def set_label_pattern(self, label_pattern: Optional[str]):
+            self.label_pattern = label_pattern
+            return self
+
+        def set_raw(self, value: bool):
+            self.is_raw = value
+            return self
+
+        def set_vertical(self, value: bool):
             self.is_vertical = value
             return self
 
-        def set_keep(self, value):
+        def set_keep(self, value: bool):
             self.keep = value
             return self
 
-        def set_display(self, value):
+        def set_display(self, value: bool):
             self.display = value
             return self
 
-        def set_diff_mode(self, value):
+        def set_diff_mode(self, value: DiffMode):
             self.diff_mode = value
             return self
 
@@ -1050,7 +1144,7 @@ class Writer:
         text += "input=" + unit.input
         text += "output=\"" + unit.output + "\"\n"
         if unit.grade is None:
-            text += "grade reduction=\n"
+            text += "\n"
         else:
             text += "grade reduction=" + str(unit.grade).zfill(3) + "%\n"
         return text
@@ -1060,8 +1154,6 @@ class Writer:
         text = ">>>>>>>>"
         if unit.case != '':
             text += " " + unit.case
-        if unit.grade is None:
-            text += " !%"
         elif unit.grade != 100:
             text += " " + str(unit.grade) + "%"
         text += '\n' + unit.input
@@ -1104,13 +1196,23 @@ class Writer:
                 number += 1
 
         def save_file(_target, _unit_list):
-            exists = os.path.isfile(_target)
-            if not exists or (exists and (force or ask_overwrite(_target))):
+            if _target.endswith(".tio"):
+                _new = "\n".join([Writer.to_tio(unit) for unit in _unit_list])
+            else:
+                _new = "\n".join([Writer.to_vpl(unit) for unit in _unit_list])
+
+            file_exists = os.path.isfile(_target)
+
+            if file_exists:
+                _old = open(_target).read()
+                if _old == _new:
+                    Logger.write("no changes in test file\n")
+                    return
+
+            if not file_exists or (file_exists and (force or ask_overwrite(_target))):
                 with open(_target, "w") as f:
-                    if _target.endswith(".tio"):
-                        f.write("\n".join([Writer.to_tio(unit) for unit in _unit_list]))
-                    else:
-                        f.write("\n".join([Writer.to_vpl(unit) for unit in _unit_list]))
+                    f.write(_new)
+
                     if not force:
                         Logger.write("file " + _target + " wrote\n")
 
@@ -1188,16 +1290,16 @@ class ActionExecute:
         for resume, wdir in zip(resume_list, wdir_list):
             ActionExecute.print_resume_begin(resume, sizes)
             ActionExecute.print_solvers(wdir, sizes[3], False)
-            if not param.is_brief:
-                for solver in wdir.solver_list:
-                    errors = ActionExecute.report_failure(solver, wdir.unit_list)
-                    if errors != "":
-                        Logger.write(errors, relative=1)
-                    diffs = ActionExecute.report_diffs(solver, wdir.unit_list, param)
-                    if diffs != "":
-                        Logger.write(diffs)
-                    if solver.result != ExecutionResult.SUCCESS and param.diff_mode == Param.DiffMode.FIRST:
-                        break
+
+            for solver in wdir.solver_list:
+                errors = ActionExecute.report_failure(solver, wdir.unit_list)
+                if errors != "":
+                    Logger.write(errors, relative=1)
+                diffs = ActionExecute.report_diffs(solver, wdir.unit_list, param)
+                if diffs != "":
+                    Logger.write(diffs)
+                if solver.result != ExecutionResult.SUCCESS and param.diff_mode == DiffMode.FIRST:
+                    break
         return ActionExecute.calc_passed(wdir_list)
 
     @staticmethod
@@ -1208,7 +1310,6 @@ class ActionExecute:
 
     @staticmethod
     def print_solvers(wdir: Wdir, total_size: int, only_show: bool = False):
-        acc = 0  # line size account
         if len(wdir.solver_list) == 0:
             Logger.write(" [" + Symbol.failure.center(total_size, Symbol.cfill) + "] " + Symbol.failure + "\n")
             return
@@ -1237,14 +1338,14 @@ class ActionExecute:
         if solver.result != ExecutionResult.WRONG_OUTPUT:
             return ""
         output = IOBuffer()
-        if param.diff_mode != Param.DiffMode.NONE:
+        if param.diff_mode != DiffMode.NONE:
             new_user = []
             new_unit = []
             for user, unit in zip(solver.user, unit_list):
                 if user != unit.output:
                     new_user.append(user)
                     new_unit.append(unit)
-            if param.diff_mode == Param.DiffMode.FIRST:
+            if param.diff_mode == DiffMode.FIRST:
                 output.write(Report.centralize("MODE: FIRST FAILURE ONLY") + "\n")
                 new_user = [new_user[0]]
                 new_unit = [new_unit[0]]
@@ -1279,15 +1380,10 @@ class ActionList:
         for resume, wdir in zip(resume_list, wdir_list):
             ActionExecute.print_resume_begin(resume, sizes)
             ActionExecute.print_solvers(wdir, sizes[3], True)
-            #        wdir_list = Identifier.mount_wdir_list(target_list, param)
-            #        resume_list = ActionList.format_resume(wdir_list)
-            #        for wdir, resume in zip(wdir_list, resume_list):
-#            Logger.write(resume + "\n")
-            if not param.is_brief:
-                if wdir.unit_list:
-                    Logger.write(Report.format_header_list(None, wdir.unit_list, headers_filler) + '\n', relative=1)
-                if param.display:
-                    Logger.write(Report.show_unit_list(None, wdir.unit_list, param.is_raw, param.is_vertical), 0)
+            if wdir.unit_list:
+                Logger.write(Report.format_header_list(None, wdir.unit_list, headers_filler) + '\n', relative=1)
+            if param.display:
+                Logger.write(Report.show_unit_list(None, wdir.unit_list, param.is_raw, param.is_vertical), 0)
         return [(wdir.folder, len(wdir.unit_list)) for wdir in wdir_list]
 
     @staticmethod
@@ -1357,13 +1453,13 @@ class Main:
         if args.width is not None:
             Report.set_terminal_size(args.width)
         PatternLoader.pattern = args.pattern
-        param = Param.Basic(args.index, args.brief, args.raw)
+        param = Param.Basic().set_index(args.index).set_raw(args.raw)
         if args.vertical:
             param.set_vertical(True)
         if args.all:
-            param.set_diff_mode(Param.DiffMode.ALL)
+            param.set_diff_mode(DiffMode.ALL)
         elif args.none:
-            param.set_diff_mode(Param.DiffMode.NONE)
+            param.set_diff_mode(DiffMode.NONE)
         if Actions.execute(args.target_list, args.folders, param):
             return 0
         return 1
@@ -1372,10 +1468,44 @@ class Main:
     def down(args):
         disc = args.disc
         index = args.index
-        url = "https://raw.githubusercontent.com/qxcode" + disc + "/moodle/master/base/" + index + "/q.tio"
+        # create dir
+        if not os.path.exists(index):
+            os.mkdir(index)
+
+        cache_url = "https://raw.githubusercontent.com/qxcode" + disc + "/arcade/master/base/" + index + "/.cache/"
+        # print(cache_url)
+
         try:
-            urllib.request.urlretrieve(url, index + ".tio")
-            print("file", index + ".tio", "downloaded")
+            readme_url = cache_url + "Readme.md"
+            readme_path = os.path.join(index, "Readme.md")
+            urllib.request.urlretrieve(readme_url, readme_path)
+            # print("file", readme_url, "downloaded")
+
+            mapi_url = cache_url + "mapi.json"
+            mapi_path = os.path.join(index, "mapi.json")
+            urllib.request.urlretrieve(mapi_url, mapi_path)
+            # print("file", mapi_path, "downloaded")
+
+            #open json file
+            with open(mapi_path) as f:
+                loaded = json.load(f)
+            os.remove(mapi_path)
+            
+            # extracting all files to folder
+            for entry in loaded["upload"]:
+                if (entry["name"] == "vpl_evaluate.cases"):
+                    with open(os.path.join(index, "q.tio"), "w") as f:
+                        f.write(entry["contents"])
+                    # print("file", os.path.join(index, "q.tio"), "created")
+
+            for entry in loaded["keep"]:
+                with open(os.path.join(index, entry["name"]), "w") as f:
+                    f.write(entry["contents"])
+
+            for entry in loaded["required"]:
+                with open(os.path.join(index, entry["name"]), "w") as f:
+                    f.write(entry["contents"])
+
         except urllib.error.HTTPError:
             print("fail: file not found")
 
@@ -1384,7 +1514,7 @@ class Main:
         if args.width is not None:
             Report.set_terminal_size(args.width)
         PatternLoader.pattern = args.pattern
-        param = Param.Basic(args.index, args.brief, args.raw).set_display(args.display)
+        param = Param.Basic().set_index(args.index).set_raw(args.raw).set_display(args.display)
         Actions.list(args.target_list, args.folders, param)
         return 0
 
@@ -1425,7 +1555,6 @@ class Main:
     def main():
         parent_basic = argparse.ArgumentParser(add_help=False)
         parent_basic.add_argument('--width', '-w', type=int, help="term width")
-        parent_basic.add_argument('--brief', '-b', action='store_true', help="show less information.")
         parent_basic.add_argument('--raw', '-r', action='store_true', help="raw mode, disable  whitespaces rendering.")
         parent_basic.add_argument('--index', '-i', metavar="I", type=int, help='run a specific index.')
         parent_basic.add_argument('--pattern', '-p', metavar="P", type=str, default='@.in @.sol',
@@ -1465,6 +1594,7 @@ class Main:
         parser_r.add_argument('target_list', metavar='T', type=str, nargs='*', help='solvers, test cases or folders.')
         parser_r.add_argument('--folders', '-f', metavar='T', type=str, nargs='+', help='folder list')
         parser_r.add_argument('--vertical', '-v', action='store_true', help="use vertical mode.")
+        parser_r.add_argument('--label', '-l', type=str, help="only use cases that match the label.")
         parser_r.add_argument('--all', '-a', action='store_true', help="show all failures.")
         parser_r.add_argument('--none', '-n', action='store_true', help="show none failures.")
         parser_r.set_defaults(func=Main.execute)
@@ -1506,4 +1636,5 @@ if __name__ == '__main__':
         Main.main()
     except KeyboardInterrupt:
         Logger.write("\n\nKeyboard Interrupt\n")
+
 
