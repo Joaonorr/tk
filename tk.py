@@ -493,8 +493,8 @@ class Wdir:
         for file in file_list:
             if file.startswith("."):
                 continue
-            elif file == "Readme.md":
-                s_list.append(file)
+            # elif file == "Readme.md":
+            #     s_list.append(file)
             elif file.endswith(".tio"):
                 s_list.append(file)
             elif file.endswith(".vpl"):
