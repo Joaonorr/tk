@@ -527,7 +527,7 @@ class Param:
             self.is_raw: bool = False
             self.keep = False
             self.display = False
-            self.is_vertical = False
+            self.is_up_down = False
             self.diff_mode = DiffMode.FIRST
 
         def set_index(self, value: Optional[int]):
@@ -542,8 +542,8 @@ class Param:
             self.is_raw = value
             return self
 
-        def set_vertical(self, value: bool):
-            self.is_vertical = value
+        def set_up_down(self, value: bool):
+            self.is_up_down = value
             return self
 
         def set_keep(self, value: bool):
@@ -1002,25 +1002,32 @@ class Report:
         return "\n".join(["".join(line) for line in data])
 
     @staticmethod
-    def show_unit_list(user_list: Optional[List[str]], unit_list: List[Unit], is_raw: bool, is_vertical: bool) -> str:
+    def show_unit_list(user_list: Optional[List[str]], unit_list: List[Unit], is_raw: bool, is_up_down: bool) -> str:
         output = io.StringIO()
-        _user_list = user_list if user_list else [None] * len(unit_list)
+        _user_list = user_list if user_list is not None else [None] * len(unit_list)
         for user, unit in zip(_user_list, unit_list):
-            output.write(Report.__show_unit(user, unit, is_raw, is_vertical))
-        if is_raw or not user_list or is_vertical:
+            output.write(Report.__show_unit(user, unit, is_raw, is_up_down))
+        if is_raw or (user_list is None) or is_up_down:
             output.write(Report.centralize(Symbol.hbar, Symbol.hbar) + "\n")
         else:
             output.write(Report.centralize("   ", Symbol.hbar, " ", " ") + "\n")
         return output.getvalue()
 
     @staticmethod
-    def __show_unit(user: Optional[str], unit: Unit, is_raw: bool = False, is_vertical: bool = False) -> str:
+    def __show_unit(user: Optional[str], unit: Unit, is_raw: bool = False, is_up_down: bool = False) -> str:
 
-        def mount_side_title(left, right, filler=" ", middle=" "):
+        def mount_side_by_side(left, right, filler=" ", middle=" "):
             half = int(Report.get_terminal_size() / 2)
-            line = " " + left.center(half - 2, filler) + " "
+            line = ""
+            a = " " + left.center(half - 2, filler) + " "
+            if len(a) > half:
+                a = a[:half]
+            line += a
             line += middle
-            line += " " + right.center(half - 2, filler) + " "
+            b = " " + right.center(half - 2, filler) + " "
+            if len(b) > half:
+                b = b[:half]
+            line += b
             return line
 
         output = io.StringIO()
@@ -1033,24 +1040,24 @@ class Report:
         dotted = "-"
         vertical_separator = Symbol.vbar
 
-        if is_vertical or not str_user:
+        if is_up_down or (str_user is None):
             output.write(Report.centralize(Symbol.hbar, Symbol.hbar) + "\n")
             output.write(Report.centralize(title) + "\n")
             output.write(Report.centralize("PROGRAM INPUT", dotted) + "\n")
             output.write(str_input)
             output.write(Report.centralize("EXPECTED OUTPUT", dotted) + "\n")
             output.write(str_output)
-            if str_user:
+            if str_user is not None:
                 output.write(Report.centralize("USER OUTPUT", dotted) + "\n")
                 output.write(str_user)
                 if not str_user.endswith("\n"):
                     output.write("\n")
         else:
             output.write(Report.centralize("   ", Symbol.hbar, " ", " ") + "\n")
-            output.write(mount_side_title(title, title, " ", vertical_separator) + "\n")
-            output.write(mount_side_title(" INPUT ", " INPUT ", dotted, vertical_separator) + "\n")
+            output.write(mount_side_by_side(title, title, " ", vertical_separator) + "\n")
+            output.write(mount_side_by_side(" INPUT ", " INPUT ", dotted, vertical_separator) + "\n")
             output.write(Report.side_by_side(str_input, str_input, vertical_separator) + "\n")
-            output.write(mount_side_title(" EXPECTED OUTPUT ", " USER OUTPUT ", dotted, vertical_separator) + "\n")
+            output.write(mount_side_by_side(" EXPECTED OUTPUT ", " USER OUTPUT ", dotted, vertical_separator) + "\n")
             output.write(Report.side_by_side(str_output, str_user, vertical_separator) + "\n")
 
         return output.getvalue()
@@ -1352,7 +1359,7 @@ class ActionExecute:
                 new_unit = [new_unit[0]]
             else:
                 output.write(Report.centralize("MODE: ALL FAILURES") + "\n")
-            output.write(Report.show_unit_list(new_user, new_unit, param.is_raw, param.is_vertical))
+            output.write(Report.show_unit_list(new_user, new_unit, param.is_raw, param.is_up_down))
         return output.getvalue()
 
     @staticmethod
@@ -1383,7 +1390,7 @@ class ActionList:
             if wdir.unit_list:
                 Logger.write(Report.format_header_list(None, wdir.unit_list, headers_filler) + '\n', relative=1)
             if param.display:
-                Logger.write(Report.show_unit_list(None, wdir.unit_list, param.is_raw, param.is_vertical), 0)
+                Logger.write(Report.show_unit_list(None, wdir.unit_list, param.is_raw, param.is_up_down), 0)
         return [(wdir.folder, len(wdir.unit_list)) for wdir in wdir_list]
 
     @staticmethod
@@ -1455,7 +1462,7 @@ class Main:
         PatternLoader.pattern = args.pattern
         param = Param.Basic().set_index(args.index).set_raw(args.raw)
         if args.vertical:
-            param.set_vertical(True)
+            param.set_up_down(True)
         if args.all:
             param.set_diff_mode(DiffMode.ALL)
         elif args.none:
