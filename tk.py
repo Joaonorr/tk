@@ -693,6 +693,7 @@ class Compiler:
         exec_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.out"])
         cmd = pre_args + solver_files + ["-o", exec_path] + pos_args
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
+        
         if return_code != 0:
             raise Runner.CompileError(stdout + stderr)
         return exec_path
@@ -1288,7 +1289,9 @@ class ActionExecute:
         sizes: List[int] = Report.max_just_calc(resume_list)
 
         for resume, wdir in zip(resume_list, wdir_list):
+            print("before")
             ActionExecute.print_resume_begin(resume, sizes)
+            print("after")
             ActionExecute.print_solvers(wdir, sizes[3], False)
 
             for solver in wdir.solver_list:
