@@ -77,11 +77,40 @@ Symbol.set_asc_only(asc2only)  # inicalizacao estatica
 
 class Solver:
     def __init__(self, path):
-        self.path: str = path
+        self.path: str = Solver.__add_dot_bar(path)
         self.filename: str = path.split(os.sep)[-1]
         self.user: List[Optional[str]] = []
         self.result: ExecutionResult = ExecutionResult.UNTESTED
         self.error_msg: str = ""
+        self.executable: str = ""
+        self.rm_executable: bool = False
+        self.prepare_exec()
+
+
+    def prepare_exec(self) -> None:
+        path = self.path
+        if " " in path:  # more than one parameter
+            self.executable = path
+        elif path.endswith(".py"):
+            self.executable = "python " + path
+        elif path.endswith(".js"):
+            self.executable = "node " + path
+        elif path.endswith(".ts"):
+            self.executable = "ts-node " + path
+        elif path.endswith(".java"):
+            self.executable = Solver.__prepare_java(path)
+            self.rm_executable = True
+        elif path.endswith(".c"):
+            self.executable = Solver.__prepare_c(path)
+            self.rm_executable = True
+        elif path.endswith(".hs"):
+            solver_cmd = Solver.__prepare_hs(path)
+            self.rm_executable = True
+        elif path.endswith(".cpp"):
+            self.executable = Solver.__prepare_cpp(path)
+            self.rm_executable = True
+        else:
+            self.executable = path
 
     def get_mark(self):
         return self._get_mark()
@@ -98,6 +127,71 @@ class Solver:
         elif self.result == ExecutionResult.EXECUTION_ERROR:
             return Symbol.execution
         return Symbol.failure
+
+    @staticmethod
+    def __prepare_java(solver: str) -> str:
+        cmd = ["javac", solver, '-d', '.']
+        return_code, stdout, stderr = Runner.subprocess_run(cmd)
+        print(stdout)
+        print(stderr)
+        if return_code != 0:
+            raise Runner.CompileError(stdout + stderr)
+        solver = solver.split(os.sep)[-1]  # getting only the filename
+        return "java " + solver[:-5]  # removing the .java
+
+    @staticmethod
+    def __prepare_multiple_files(solver: str) -> List[str]:
+        return list(map(Solver.__add_dot_bar, solver.split(Identifier.multi_file_separator)))
+
+    @staticmethod
+    def __prepare_hs(solver: str) -> str:
+        solver_files = Solver.__prepare_multiple_files(solver)
+        source_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.hs"])
+        exec_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.out"])
+        with open(source_path, "w") as f:
+            for solver in solver_files:
+                f.write(open(solver).read() + "\n")
+
+        cmd = ["ghc", "--make", source_path, "-o", exec_path]
+        return_code, stdout, stderr = Runner.subprocess_run(cmd)
+        print(stdout)
+        print(stderr)
+        if return_code != 0:
+            raise Runner.CompileError(stdout + stderr)
+        return exec_path
+
+    @staticmethod
+    def __prepare_c_cpp(solver: str, pre_args: List[str], pos_args: list[str]) -> str:
+        solver_files = Solver.__prepare_multiple_files(solver)
+        exec_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.out"])
+        cmd = pre_args + solver_files + ["-o", exec_path] + pos_args
+        return_code, stdout, stderr = Runner.subprocess_run(cmd)
+        print(stdout)
+        print(stderr)
+        if return_code != 0:
+            raise Runner.CompileError(stdout + stderr)
+        return exec_path
+
+    @staticmethod
+    def __prepare_c(solver: str) -> str:
+        pre = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type",
+               "-fno-diagnostics-color"]
+        pos = ["-lm", "-lutil"]
+        return Solver.__prepare_c_cpp(solver, pre, pos)
+
+    @staticmethod
+    def __prepare_cpp(solver: str) -> str:
+        pre = ["g++", "-std=c++20", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined",
+               "-D_GLIBCXX_DEBUG"]
+        pos = []
+        return Solver.__prepare_c_cpp(solver, pre, pos)
+
+    @staticmethod
+    def __add_dot_bar(solver: str) -> str:
+        if os.sep not in solver and os.path.isfile("." + os.sep + solver):
+            solver = "." + os.sep + solver
+        return solver
+
 
 
 class IOBuffer:
@@ -474,17 +568,17 @@ class Param:
 class Wdir:
     def __init__(self, folder: str):
         self.folder = folder
-        self.solver_list: Optional[List[Solver]] = None
+        self.solver: Optional[Solver] = None
         self.source_list: List[str] = []
         self.pack_list: List[List[Unit]] = []
         self.unit_list: List[Unit] = []
 
-    def sources(self, sources: List[str]):
+    def set_sources(self, sources: List[str]):
         self.source_list = sources
         return self
 
-    def solvers(self, solvers: List[str]):
-        self.solver_list = [Solver(solver) for solver in solvers]
+    def set_solver(self, solver: str):
+        self.solver = Solver(solver)
         return self
 
     def load_sources(self):
@@ -509,7 +603,10 @@ class Wdir:
             if file.lower().startswith("solver"):
                 s_list.append(file)
         s_list = sorted(s_list)
-        self.solver_list = [Solver(os.path.join(self.folder, file)) for file in s_list]
+        if len(s_list) == 0:
+            self.solver = None
+        else:
+            self.solver = Solver(os.path.join(self.folder, s_list[0]))
         return self
 
     def parse_sources(self):
@@ -584,11 +681,9 @@ class Wdir:
             return ", ".join(out)
 
         def resume_solvers() -> str:
-            if self.solver_list is None:
+            if self.solver is None:
                 return ""
-            if len(self.solver_list) == 0:
-                return Symbol.failure
-            return ", ".join([solver.get_mark() + solver.filename for solver in self.solver_list])
+            return self.solver.get_mark() + self.solver.filename
         return [self.folder, resume_count(), resume_sources(), resume_solvers()]
 
 
@@ -653,99 +748,6 @@ class Runner:
         stdout, stderr = p.communicate(input=input_data)
         return p.returncode, stdout, stderr
 
-
-class Compiler:
-
-    def __init__(self):
-        pass
-
-    @staticmethod
-    def __prepare_java(solver: str) -> str:
-        cmd = ["javac", solver, '-d', '.']
-        return_code, stdout, stderr = Runner.subprocess_run(cmd)
-        if return_code != 0:
-            raise Runner.CompileError(stdout + stderr)
-        solver = solver.split(os.sep)[-1]  # getting only the filename
-        return "java " + solver[:-5]  # removing the .java
-
-    @staticmethod
-    def __prepare_multiple_files(solver: str) -> List[str]:
-        return list(map(Compiler.add_dot_bar, solver.split(Identifier.multi_file_separator)))
-
-    @staticmethod
-    def __prepare_hs(solver: str) -> str:
-        solver_files = Compiler.__prepare_multiple_files(solver)
-        source_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.hs"])
-        exec_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.out"])
-        with open(source_path, "w") as f:
-            for solver in solver_files:
-                f.write(open(solver).read() + "\n")
-
-        cmd = ["ghc", "--make", source_path, "-o", exec_path]
-        return_code, stdout, stderr = Runner.subprocess_run(cmd)
-        if return_code != 0:
-            raise Runner.CompileError(stdout + stderr)
-        return exec_path
-
-    @staticmethod
-    def __prepare_c_cpp(solver: str, pre_args: List[str], pos_args: list[str]) -> str:
-        solver_files = Compiler.__prepare_multiple_files(solver)
-        exec_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.out"])
-        cmd = pre_args + solver_files + ["-o", exec_path] + pos_args
-        return_code, stdout, stderr = Runner.subprocess_run(cmd)
-        
-        if return_code != 0:
-            raise Runner.CompileError(stdout + stderr)
-        return exec_path
-
-    @staticmethod
-    def __prepare_c(solver: str) -> str:
-        pre = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type",
-               "-fno-diagnostics-color"]
-        pos = ["-lm", "-lutil"]
-        return Compiler.__prepare_c_cpp(solver, pre, pos)
-
-    @staticmethod
-    def __prepare_cpp(solver: str) -> str:
-        pre = ["g++", "-std=c++20", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined",
-               "-D_GLIBCXX_DEBUG"]
-        pos = []
-        return Compiler.__prepare_c_cpp(solver, pre, pos)
-
-    @staticmethod
-    def add_dot_bar(solver: str) -> str:
-        if os.sep not in solver and os.path.isfile("." + os.sep + solver):
-            solver = "." + os.sep + solver
-        return solver
-
-    @staticmethod
-    def prepare_exec(solver: str) -> Tuple[str, bool]:
-        # if PreScript.exists():
-        #    solver = PreScript.process_solver(solver)
-
-        solver = Compiler.add_dot_bar(solver)
-        if " " in solver:  # more than one parameter
-            return solver, False
-        elif solver.endswith(".py"):
-            return "python " + solver, False
-        elif solver.endswith(".js"):
-            return "node " + solver, False
-        elif solver.endswith(".java"):
-            solver_cmd = Compiler.__prepare_java(solver)
-            return solver_cmd, True
-        elif solver.endswith(".c"):
-            solver_cmd = Compiler.__prepare_c(solver)
-            return solver_cmd, True
-        elif solver.endswith(".hs"):
-            solver_cmd = Compiler.__prepare_hs(solver)
-            return solver_cmd, False
-        elif solver.endswith(".cpp"):
-            solver_cmd = Compiler.__prepare_cpp(solver)
-            return solver_cmd, True
-        else:
-            return solver, False
-
-
 class IdentifierType(Enum):
     WDIR = "WORKING DIR"
     OBI = "OBI"
@@ -791,12 +793,14 @@ class Identifier:
         return out
 
     @staticmethod
-    def split_input_list(input_list: List[str]) -> Tuple[List[str], List[str]]:
+    def split_input_list(input_list: List[str]) -> Tuple[str, List[str]]:
         input_list = Identifier.join_multi_file_solvers(input_list)
 
         solvers = [target for target in input_list if Identifier.get_type(target) == IdentifierType.SOLVER]
         sources = [target for target in input_list if target not in solvers]
-        return solvers, sources
+
+        solver = None if len(solvers) == 0 else solvers[0]
+        return solver, sources
 
     @staticmethod
     def mount_wdir_list(target_list: List[str], folders: List[str], param: Param.Basic) -> List[Wdir]:
@@ -806,7 +810,7 @@ class Identifier:
         if len(target_list) == 0 and folders is None:
             folders = ["."]
         if sources or solvers:
-            wdir_list.append(Wdir(".").sources(sources).solvers(solvers).parse_sources().filter(param.index))
+            wdir_list.append(Wdir(".").set_sources(sources).set_solver(solvers).parse_sources().filter(param.index))
         if folders is not None:
             wdir_list += [Wdir(f).load_solvers().load_sources().parse_sources().filter(param.index) for f in folders]
         return wdir_list
@@ -835,21 +839,20 @@ class Execution:
 
     @staticmethod
     def __exec_and_check(solver: Solver, unit_list: List[Unit], keep: bool = False) -> None:
-        exec_cmd, is_temp_file = Compiler.prepare_exec(solver.path)
         for _i in range(len(unit_list)):
             solver.user.append(None)
         for i in range(len(unit_list)):
-            solver.user[i] = Execution.__execute_single_case(exec_cmd, unit_list[i].input)
+            solver.user[i] = Execution.__execute_single_case(solver.executable, unit_list[i].input)
             if solver.user[i] == unit_list[i].output:
                 Logger.write(Symbol.get_core_symbol(Symbol.success))
             else:
                 Logger.write(Symbol.get_core_symbol(Symbol.failure))
-        if is_temp_file and not keep:
-            if exec_cmd.startswith("java "):
+        if solver.rm_executable and not keep:
+            if solver.executable.startswith("java "):
                 for x in [item for item in os.listdir(".") if item.endswith(".class")]:
                     os.remove(x)
             else:
-                os.remove(exec_cmd)
+                os.remove(solver.executable)
 
     @staticmethod
     def __check_all_answers_right(solver: Solver, unit_list: List[Unit]) -> bool:
@@ -1289,20 +1292,16 @@ class ActionExecute:
         sizes: List[int] = Report.max_just_calc(resume_list)
 
         for resume, wdir in zip(resume_list, wdir_list):
-            print("before")
             ActionExecute.print_resume_begin(resume, sizes)
-            print("after")
             ActionExecute.print_solvers(wdir, sizes[3], False)
 
-            for solver in wdir.solver_list:
-                errors = ActionExecute.report_failure(solver, wdir.unit_list)
-                if errors != "":
-                    Logger.write(errors, relative=1)
-                diffs = ActionExecute.report_diffs(solver, wdir.unit_list, param)
-                if diffs != "":
-                    Logger.write(diffs)
-                if solver.result != ExecutionResult.SUCCESS and param.diff_mode == DiffMode.FIRST:
-                    break
+            errors = ActionExecute.report_failure(wdir.solver, wdir.unit_list)
+            if errors != "":
+                Logger.write(errors, relative=1)
+            diffs = ActionExecute.report_diffs(wdir.solver, wdir.unit_list, param)
+            if diffs != "":
+                Logger.write(diffs)
+
         return ActionExecute.calc_passed(wdir_list)
 
     @staticmethod
@@ -1313,14 +1312,13 @@ class ActionExecute:
 
     @staticmethod
     def print_solvers(wdir: Wdir, total_size: int, only_show: bool = False):
-        if len(wdir.solver_list) == 0:
+        if wdir.solver is None:
             Logger.write(" [" + Symbol.failure.center(total_size, Symbol.cfill) + "] " + Symbol.failure + "\n")
             return
-        for solver in wdir.solver_list:
-            Logger.write(" [")
-            if not only_show:
-                Execution.execute_solver(solver, wdir.unit_list)
-            Logger.write(" " + solver.filename + " " + solver.get_mark() + "]")
+        Logger.write(" [")
+        if not only_show:
+            Execution.execute_solver(wdir.solver, wdir.unit_list)
+        Logger.write(" " + wdir.solver.filename + " " + wdir.solver.get_mark() + "]")
         Logger.write("\n")
 
     @staticmethod
@@ -1362,9 +1360,8 @@ class ActionExecute:
         output: List[Tuple[str, int, List[Tuple[str, int]]]] = []
         for wdir in wdir_list:
             wdir_out: List[Tuple[str, int]] = []
-            for solver in wdir.solver_list:
-                passed = len([unit for user, unit in zip(solver.user, wdir.unit_list) if user == unit.output])
-                wdir_out.append((solver.filename, passed))
+            passed = len([unit for user, unit in zip(wdir.solver.user, wdir.unit_list) if user == unit.output])
+            wdir_out.append((wdir.solver.filename, passed))
             output += [(wdir.folder, len(wdir.unit_list), wdir_out)]
         return output
 
@@ -1421,7 +1418,7 @@ class Actions:
     def build(target_out: str, source_list: List[str], param: Param.Manip, to_force: bool) -> bool:
         try:
             Logger.inc_level()
-            wdir = Wdir(".").sources(source_list).parse_sources()
+            wdir = Wdir(".").set_sources(source_list).parse_sources()
             wdir.manipulate(param)
             Writer.save_target(target_out, wdir.unit_list, to_force)
             Logger.dec_level()
@@ -1434,7 +1431,7 @@ class Actions:
     @staticmethod
     def update(target_list: List[str], param: Param.Manip, solver: Optional[str]) -> bool:
         for target in target_list:
-            wdir = Wdir(".").sources([target]).parse_sources()
+            wdir = Wdir(".").set_sources([target]).parse_sources()
             wdir.manipulate(param)
             if solver:
                 wdir.replace_input(Solver(solver))
@@ -1471,12 +1468,12 @@ class Main:
     def save_as(file_url, filename) -> bool:
         try:
             urllib.request.urlretrieve(file_url, filename)
-        except urllib.error.HTTPError as e:
+        except urllib.error.HTTPError:
             return False
         return True
 
     @staticmethod
-    def create_file(content, path, label = ""):
+    def create_file(content, path, label=""):
         with open(path, "w") as f:
             f.write(content)
         print(path, label)
@@ -1485,7 +1482,7 @@ class Main:
     def unpack_json(loaded, index):
         # extracting all files to folder
         for entry in loaded["upload"]:
-            if (entry["name"] == "vpl_evaluate.cases"):
+            if entry["name"] == "vpl_evaluate.cases":
                 Main.create_file(entry["contents"], os.path.join(index, "cases.tio"))
 
         for entry in loaded["keep"]:
@@ -1524,7 +1521,7 @@ class Main:
         Main.unpack_json(loaded, index)
 
         if len(loaded["required"]) == 0:
-            draft_path =  os.path.join(index, "solver." + ext)
+            draft_path = os.path.join(index, "solver." + ext)
             if Main.save_as(cache_url + "solver_draft." + ext, draft_path):
                 print(draft_path, "(Draft)")
             else:
@@ -1557,7 +1554,7 @@ class Main:
         return 0
 
     @staticmethod
-    def tkupdate(_args):
+    def tk_update(_args):
         tdir = tempfile.mkdtemp()
         installer = os.path.join(tdir, "installer.sh")
         cmd = ["wget", "https://raw.githubusercontent.com/senapk/tk/master/tools/install_linux.sh", "-O", installer]
@@ -1642,7 +1639,7 @@ class Main:
         parser_d.set_defaults(func=Main.down)
 
         parser_tkupdate = subparsers.add_parser('tkupdate', help='update tk script(linux only).')
-        parser_tkupdate.set_defaults(func=Main.tkupdate)
+        parser_tkupdate.set_defaults(func=Main.tk_update)
 
         args = parser.parse_args()
         if len(sys.argv) == 1:
@@ -1659,5 +1656,3 @@ if __name__ == '__main__':
         Main.main()
     except KeyboardInterrupt:
         Logger.write("\n\nKeyboard Interrupt\n")
-
-

@@ -228,11 +228,11 @@ class TestActions(unittest.TestCase):
 
 class TestWdir(unittest.TestCase):
     def test_load(self):
-        wdir = tk.Wdir("data/00").sources(["data/00/t.tio"]).parse_sources()
+        wdir = tk.Wdir("data/00").set_sources(["data/00/t.tio"]).parse_sources()
         self.assertEqual(len(wdir.unit_list), 3)
 
     def test_load2(self):
-        wdir = tk.Wdir("data/00").sources(["data/00/t.tio"]).parse_sources().filter(1)
+        wdir = tk.Wdir("data/00").set_sources(["data/00/t.tio"]).parse_sources().filter(1)
         self.assertEqual(len(wdir.unit_list), 1)
 
     def test_load3(self):
