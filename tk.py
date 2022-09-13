@@ -174,15 +174,14 @@ class Solver:
 
     @staticmethod
     def __prepare_c(solver: str) -> str:
-        pre = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type",
-               "-fno-diagnostics-color"]
+        pre = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type", "-fno-diagnostics-color"]
         pos = ["-lm", "-lutil"]
         return Solver.__prepare_c_cpp(solver, pre, pos)
 
     @staticmethod
     def __prepare_cpp(solver: str) -> str:
-        pre = ["g++", "-std=c++20", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined",
-               "-D_GLIBCXX_DEBUG"]
+        # pre = ["g++", "-std=c++20", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined", "-D_GLIBCXX_DEBUG"] # muito lento no replit
+        pre = ["g++", "-std=c++20", "-Wall", "-Wextra"]
         pos = []
         return Solver.__prepare_c_cpp(solver, pre, pos)
 
