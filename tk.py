@@ -1015,6 +1015,54 @@ class Report:
         return output.getvalue()
 
     @staticmethod
+    # return a tuple of two strings with the diff and the first two mismatch line rendered
+    def render_down_diff(a_text: str, b_text: str) -> Tuple[str, str]:
+        char_error = "≠ "
+        char_equal = "│ "
+
+        a_lines = a_text.splitlines()
+        b_lines = b_text.splitlines()
+
+        a_render = Report.render_white(a_text).splitlines()
+        b_render = Report.render_white(b_text).splitlines()
+
+        a_output = []
+        b_output = []
+
+        a_size = len(a_lines)
+        b_size = len(b_lines)
+        
+        first_failure = -1
+
+        max_size = max(a_size, b_size)
+        # lambda function to return element in index i or empty if out of bounds
+        get = lambda vet, i: vet[i] if i < len(vet) else ""
+        
+        for i in range(max_size):
+            if i >= a_size or i >= b_size or a_render[i] != b_render[i]:
+                if first_failure == -1:
+                    first_failure = i
+                a_output.append(char_error + get(a_lines, i))
+                b_output.append(char_error + get(b_lines, i))
+            else:
+                a_output.append(char_equal + a_lines[i])
+                b_output.append(char_equal + b_lines[i])
+
+        if first_failure == -1:
+            return "\n".join(a_output), "\n".join(b_output)
+
+        first_a = get(a_render, first_failure)
+        first_b = get(b_render, first_failure)
+        greater = max(len(first_a), len(first_b))
+
+        postext = "--------------------------------------\n" +\
+                  "First line mismatch showing withspaces\n" +\
+                  first_a.ljust(greater) + " (expected)\n" +\
+                  first_b.ljust(greater) + " (received)"
+
+        return "\n".join(a_output) + "\n", "\n".join(b_output) + "\n" + postext + "\n"
+
+    @staticmethod
     def __show_unit(user: Optional[str], unit: Unit, is_raw: bool = False, is_up_down: bool = False) -> str:
 
         def mount_side_by_side(left, right, filler=" ", middle=" "):
@@ -1032,9 +1080,14 @@ class Report:
             return line
 
         output = io.StringIO()
-        str_input = Report.render_white(unit.input) if not is_raw else unit.input
-        str_output = Report.render_white(unit.output) if not is_raw else unit.output
-        str_user = Report.render_white(user) if not is_raw else user
+
+        if is_up_down and not is_raw:
+            str_input = unit.input
+            str_output, str_user = Report.render_down_diff(unit.output, user)
+        else:
+            str_input = Report.render_white(unit.input) if not is_raw else unit.input
+            str_output = Report.render_white(unit.output) if not is_raw else unit.output
+            str_user = Report.render_white(user) if not is_raw else user
 
         title = " ".join(Report.format_header(user, unit).split(" ")[1:])
 
