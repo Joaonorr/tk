@@ -174,7 +174,8 @@ class Solver:
 
     @staticmethod
     def __prepare_c(solver: str) -> str:
-        pre = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type", "-fno-diagnostics-color"]
+        # pre = ["gcc", "-Wall", "-fsanitize=address", "-Wuninitialized", "-Wparentheses", "-Wreturn-type", "-fno-diagnostics-color"] 
+        pre = ["gcc", "-Wall"]
         pos = ["-lm", "-lutil"]
         return Solver.__prepare_c_cpp(solver, pre, pos)
 
