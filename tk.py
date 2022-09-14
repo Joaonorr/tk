@@ -147,18 +147,18 @@ class Solver:
 
     @staticmethod
     def __prepare_ts(solver: str) -> str:
-        cmd = ["tsc", solver]
+        #create a tempdir
+        sourcedir = os.path.dirname(solver)
+        filename = solver.split(os.sep)[-1]
+        #compile the ts file
+        jsfile = os.path.join(sourcedir, "__" + filename[:-3] + ".js")
+        cmd = ["esbuild", solver, "--outfile=" + jsfile, "--format=cjs"]
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
         print(stdout)
         print(stderr)
         if return_code != 0:
             raise Runner.CompileError(stdout + stderr)
-        # rename file from solver to main
-        dirname = os.path.dirname(solver)
-        new_output = os.path.join(dirname, "__solver.js")
-        os.rename(solver[:-3] + ".js", new_output)
-
-        return "node " + new_output  # renaming solver to main
+        return "node " + jsfile  # renaming solver to main
 
     @staticmethod
     def __prepare_hs(solver: str) -> str:
