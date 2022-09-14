@@ -97,7 +97,8 @@ class Solver:
         elif path.endswith(".js"):
             self.executable = "node " + path
         elif path.endswith(".ts"):
-            self.executable = "ts-node " + path
+            self.executable = Solver.__prepare_ts(path)
+            self.rm_executable = False
         elif path.endswith(".java"):
             self.executable = Solver.__prepare_java(path)
             self.rm_executable = True
@@ -143,6 +144,21 @@ class Solver:
     @staticmethod
     def __prepare_multiple_files(solver: str) -> List[str]:
         return list(map(Solver.__add_dot_bar, solver.split(Identifier.multi_file_separator)))
+
+    @staticmethod
+    def __prepare_ts(solver: str) -> str:
+        cmd = ["tsc", solver]
+        return_code, stdout, stderr = Runner.subprocess_run(cmd)
+        print(stdout)
+        print(stderr)
+        if return_code != 0:
+            raise Runner.CompileError(stdout + stderr)
+        # rename file from solver to main
+        dirname = os.path.dirname(solver)
+        new_output = os.path.join(dirname, "output.js")
+        os.rename(solver[:-3] + ".js", new_output)
+
+        return "node " + new_output  # renaming solver to main
 
     @staticmethod
     def __prepare_hs(solver: str) -> str:
