@@ -622,8 +622,10 @@ class Wdir:
         s_list = sorted(s_list)
         if len(s_list) == 0:
             self.solver = None
-        else:
+        elif len(s_list) == 1:
             self.solver = Solver(os.path.join(self.folder, s_list[0]))
+        else:
+            raise Exception("fail: more than one solver found, you should have only one solver in folder")
         return self
 
     def parse_sources(self):
@@ -821,15 +823,17 @@ class Identifier:
 
     @staticmethod
     def mount_wdir_list(target_list: List[str], folders: List[str], param: Param.Basic) -> List[Wdir]:
-
         wdir_list: List[Wdir] = []
-        solvers, sources = Identifier.split_input_list(target_list)
-        if len(target_list) == 0 and folders is None:
-            folders = ["."]
-        if sources or solvers:
-            wdir_list.append(Wdir(".").set_sources(sources).set_solver(solvers).parse_sources().filter(param.index))
-        if folders is not None:
-            wdir_list += [Wdir(f).load_solvers().load_sources().parse_sources().filter(param.index) for f in folders]
+        try:
+            solvers, sources = Identifier.split_input_list(target_list)
+            if len(target_list) == 0 and folders is None:
+                folders = ["."]
+            if sources or solvers:
+                wdir_list.append(Wdir(".").set_sources(sources).set_solver(solvers).parse_sources().filter(param.index))
+            if folders is not None:
+                wdir_list += [Wdir(f).load_solvers().load_sources().parse_sources().filter(param.index) for f in folders]
+        except Exception as e:
+            print(e)
         return wdir_list
 
 
