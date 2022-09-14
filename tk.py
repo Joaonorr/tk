@@ -155,7 +155,7 @@ class Solver:
             raise Runner.CompileError(stdout + stderr)
         # rename file from solver to main
         dirname = os.path.dirname(solver)
-        new_output = os.path.join(dirname, "output.js")
+        new_output = os.path.join(dirname, "__solver.js")
         os.rename(solver[:-3] + ".js", new_output)
 
         return "node " + new_output  # renaming solver to main
@@ -1527,7 +1527,7 @@ class Actions:
 class ITable:
     options_base = ["fup", "ed", "poo"]
     options_term = ["40", "60", "80", "100", "120", "140", "160", "180", "200"]
-    options_view = ["side", "down"]
+    options_view = ["down", "side"]
     options_mark = ["show", "hide"]
     options_exte = ["c", "cpp", "js", "ts", "py", "java", "hs"]
 
