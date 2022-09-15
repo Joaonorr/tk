@@ -1805,10 +1805,10 @@ class Main:
 
     @staticmethod
     def down(args):
-        Main.down(args.disc, args.index, args.extension)
+        Main.down_exp(args.disc, args.index, args.extension)
 
     @staticmethod
-    def down(disc, index, ext):
+    def down_exp(disc, index, ext):
 
         # create dir
         if not os.path.exists(index):
