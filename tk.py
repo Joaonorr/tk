@@ -1577,7 +1577,7 @@ class ITable:
         ext = ITable.choose("Choose extension ", ITable.options_exte, ext)
 
         print("{} {} {}".format(label, ext, base))
-        Main.down(base, label, ext)
+        Main.down_exp(base, label, ext)
         return "down" + " " + label + " " + ext
 
     @staticmethod
