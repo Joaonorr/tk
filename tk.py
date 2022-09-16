@@ -1811,6 +1811,9 @@ class Main:
         # create dir
         if not os.path.exists(index):
             os.mkdir(index)
+        else:
+            print("fail: folder ", index, " already exists, removing it first, and run the command again.")
+            return
 
         cache_url = "https://raw.githubusercontent.com/qxcode" + disc + "/arcade/master/base/" + index + "/.cache/"
 
