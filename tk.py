@@ -79,12 +79,19 @@ Symbol.set_asc_only(asc2only)  # inicalizacao estatica
 class Solver:
     def __init__(self, path):
         self.path: str = Solver.__add_dot_bar(path)
-        self.filename: str = path.split(os.sep)[-1]
+        self.filename: str = os.path.basename(self.path)
+        basedir = os.path.dirname(self.path)
+        temp_dir = tempfile.mkdtemp()
+        for file in os.listdir(basedir):
+            fpath = os.path.join(basedir, file)
+            if os.path.isfile(fpath):
+                shutil.copyfile(fpath, os.path.join(temp_dir, file))
+        self.path = os.path.join(temp_dir, self.filename)
+
         self.user: List[Optional[str]] = []
         self.result: ExecutionResult = ExecutionResult.UNTESTED
         self.error_msg: str = ""
         self.executable: str = ""
-        self.rm_executable: bool = False
         self.prepare_exec()
 
 
@@ -98,19 +105,14 @@ class Solver:
             self.executable = "node " + path
         elif path.endswith(".ts"):
             self.executable = Solver.__prepare_ts(path)
-            self.rm_executable = False
         elif path.endswith(".java"):
             self.executable = Solver.__prepare_java(path)
-            self.rm_executable = True
         elif path.endswith(".c"):
             self.executable = Solver.__prepare_c(path)
-            self.rm_executable = True
         elif path.endswith(".hs"):
             solver_cmd = Solver.__prepare_hs(path)
-            self.rm_executable = True
         elif path.endswith(".cpp"):
             self.executable = Solver.__prepare_cpp(path)
-            self.rm_executable = True
         else:
             self.executable = path
 
@@ -132,7 +134,14 @@ class Solver:
 
     @staticmethod
     def __prepare_java(solver: str) -> str:
-        cmd = ["javac", solver, '-d', '.']
+        basedir = os.path.dirname(solver)
+        filename = os.path.basename(solver)
+        java_list = []
+        for file in os.listdir(basedir):
+            if file.endswith(".java") and not file.startswith("_"):
+                java_list.append(os.path.join(basedir, file))
+
+        cmd = ["javac"] + java_list + ['-d', '.']
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
         print(stdout)
         print(stderr)
@@ -542,7 +551,6 @@ class Param:
             self.index: Optional[int] = None
             self.label_pattern: Optional[str] = None
             self.is_raw: bool = False
-            self.keep = False
             self.display = False
             self.is_up_down = False
             self.diff_mode = DiffMode.FIRST
@@ -561,10 +569,6 @@ class Param:
 
         def set_up_down(self, value: bool):
             self.is_up_down = value
-            return self
-
-        def set_keep(self, value: bool):
-            self.keep = value
             return self
 
         def set_display(self, value: bool):
@@ -859,7 +863,7 @@ class Execution:
         return stdout
 
     @staticmethod
-    def __exec_and_check(solver: Solver, unit_list: List[Unit], keep: bool = False) -> None:
+    def __exec_and_check(solver: Solver, unit_list: List[Unit]) -> None:
         for _i in range(len(unit_list)):
             solver.user.append(None)
         for i in range(len(unit_list)):
@@ -868,21 +872,15 @@ class Execution:
                 Logger.write(Symbol.get_core_symbol(Symbol.success))
             else:
                 Logger.write(Symbol.get_core_symbol(Symbol.failure))
-        if solver.rm_executable and not keep:
-            if solver.executable.startswith("java "):
-                for x in [item for item in os.listdir(".") if item.endswith(".class")]:
-                    os.remove(x)
-            else:
-                os.remove(solver.executable)
 
     @staticmethod
     def __check_all_answers_right(solver: Solver, unit_list: List[Unit]) -> bool:
         return len([unit for unit, output in zip(unit_list, solver.user) if unit.output == output]) == len(unit_list)
 
     @staticmethod
-    def execute_solver(solver: Solver, unit_list: List[Unit], keep: bool = False) -> None:
+    def execute_solver(solver: Solver, unit_list: List[Unit]) -> None:
         try:
-            Execution.__exec_and_check(solver, unit_list, keep)
+            Execution.__exec_and_check(solver, unit_list)
             if Execution.__check_all_answers_right(solver, unit_list):
                 solver.result = ExecutionResult.SUCCESS
             else:
