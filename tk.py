@@ -77,11 +77,14 @@ Symbol.set_asc_only(asc2only)  # inicalizacao estatica
 
 
 class Solver:
-    def __init__(self, path):
+    def __init__(self, path: str):
+
         self.path: str = Solver.__add_dot_bar(path)
         self.filename: str = os.path.basename(self.path)
         basedir = os.path.dirname(self.path)
         temp_dir = tempfile.mkdtemp()
+        print("Tempdir for execution: " + temp_dir)
+
         for file in os.listdir(basedir):
             fpath = os.path.join(basedir, file)
             if os.path.isfile(fpath):
@@ -109,8 +112,8 @@ class Solver:
             self.executable = Solver.__prepare_java(path)
         elif path.endswith(".c"):
             self.executable = Solver.__prepare_c(path)
-        elif path.endswith(".hs"):
-            solver_cmd = Solver.__prepare_hs(path)
+        # elif path.endswith(".hs"):
+        #     solver_cmd = Solver.__prepare_hs(path)
         elif path.endswith(".cpp"):
             self.executable = Solver.__prepare_cpp(path)
         else:
@@ -133,26 +136,33 @@ class Solver:
         return Symbol.failure
 
     @staticmethod
-    def __prepare_java(solver: str) -> str:
+    def __get_files_by_ext(solver: str) -> List[str]:
         basedir = os.path.dirname(solver)
         filename = os.path.basename(solver)
-        java_list = []
+        ext = os.path.splitext(filename)[1]
+        file_list = []
         for file in os.listdir(basedir):
-            if file.endswith(".java") and not file.startswith("_"):
-                java_list.append(os.path.join(basedir, file))
+            if file.endswith(ext) and not file.startswith("_"):
+                file_list.append(os.path.join(basedir, file))
+        # print(file_list)
+        return file_list
 
-        cmd = ["javac"] + java_list + ['-d', '.']
+    @staticmethod
+    def __prepare_java(solver: str) -> str:
+        filename = os.path.basename(solver)
+        java_list = Solver.__get_files_by_ext(solver)
+        tempdir = os.path.dirname(solver)
+        print("Using the following source files: " + str([os.path.basename(x) for x in java_list]))
+
+        cmd = ["javac"] + java_list + ['-d', tempdir]
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
         print(stdout)
         print(stderr)
         if return_code != 0:
             raise Runner.CompileError(stdout + stderr)
         solver = solver.split(os.sep)[-1]  # getting only the filename
-        return "java " + solver[:-5]  # removing the .java
+        return "java -cp " + tempdir +  " "  + filename[:-5]  # removing the .java
 
-    @staticmethod
-    def __prepare_multiple_files(solver: str) -> List[str]:
-        return list(map(Solver.__add_dot_bar, solver.split(Identifier.multi_file_separator)))
 
     @staticmethod
     def __prepare_ts(solver: str) -> str:
@@ -169,28 +179,32 @@ class Solver:
             raise Runner.CompileError(stdout + stderr)
         return "node " + jsfile  # renaming solver to main
 
-    @staticmethod
-    def __prepare_hs(solver: str) -> str:
-        solver_files = Solver.__prepare_multiple_files(solver)
-        source_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.hs"])
-        exec_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.out"])
-        with open(source_path, "w") as f:
-            for solver in solver_files:
-                f.write(open(solver).read() + "\n")
+    # @staticmethod
+    # def __prepare_hs(solver: str) -> str:
+    #     solver_files = Solver.__prepare_multiple_files(solver)
+    #     source_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.hs"])
+    #     exec_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.out"])
+    #     with open(source_path, "w") as f:
+    #         for solver in solver_files:
+    #             f.write(open(solver).read() + "\n")
 
-        cmd = ["ghc", "--make", source_path, "-o", exec_path]
-        return_code, stdout, stderr = Runner.subprocess_run(cmd)
-        print(stdout)
-        print(stderr)
-        if return_code != 0:
-            raise Runner.CompileError(stdout + stderr)
-        return exec_path
+    #     cmd = ["ghc", "--make", source_path, "-o", exec_path]
+    #     return_code, stdout, stderr = Runner.subprocess_run(cmd)
+    #     print(stdout)
+    #     print(stderr)
+    #     if return_code != 0:
+    #         raise Runner.CompileError(stdout + stderr)
+    #     return exec_path
 
     @staticmethod
     def __prepare_c_cpp(solver: str, pre_args: List[str], pos_args: list[str]) -> str:
-        solver_files = Solver.__prepare_multiple_files(solver)
-        exec_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.out"])
-        cmd = pre_args + solver_files + ["-o", exec_path] + pos_args
+        filename = os.path.basename(solver)
+        source_list = Solver.__get_files_by_ext(solver)
+        tempdir = os.path.dirname(solver)
+        print("Using the following source files: " + str([os.path.basename(x) for x in source_list]))
+        
+        exec_path = os.path.join(tempdir, ".a.out")
+        cmd = pre_args + source_list + ["-o", exec_path] + pos_args
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
         print(stdout)
         print(stderr)
@@ -598,8 +612,11 @@ class Wdir:
         self.source_list = sources
         return self
 
-    def set_solver(self, solver: str):
-        self.solver = Solver(solver)
+    def set_solver(self, solver: Optional[str]):
+        if solver is not None:
+            self.solver = Solver(solver)
+        else:
+            self.solver = None
         return self
 
     def load_sources(self):
@@ -834,8 +851,10 @@ class Identifier:
                 folders = ["."]
             if sources or solvers:
                 wdir_list.append(Wdir(".").set_sources(sources).set_solver(solvers).parse_sources().filter(param.index))
+
             if folders is not None:
                 wdir_list += [Wdir(f).load_solvers().load_sources().parse_sources().filter(param.index) for f in folders]
+
         except Exception as e:
             print(e)
         return wdir_list
