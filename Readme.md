@@ -34,7 +34,7 @@ Se for assistir, use o modo velocidade x2 do Youtube porque eu falo devagar. :)
 
 
 ## Instalação
-- Baixe o tk.py e coloque em algum lugar do seu PATH
+- Baixe o [tk.py](tk.py) e coloque em algum lugar do seu PATH
 
 ## O que é um teste?
 - Um teste define qual o comportamento esperado de um programa determinístico. Para uma determinada entrada, o programa deve gerar **sempre** a mesma saída.
