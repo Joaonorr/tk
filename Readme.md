@@ -34,17 +34,7 @@ Se for assistir, use o modo velocidade x2 do Youtube porque eu falo devagar. :)
 
 
 ## Instalação
-- Linux
-    - Instalação local na pasta ~/bin pelo script do github
-
-```
-sh -c "$(wget -O- https://raw.githubusercontent.com/senapk/tk/master/tools/install_linux.sh)"
-```
-
-- Windows
-    - Modo fácil:
-        - Instale o WSL(Subsistema Windos para Linux)
-        - Rode o script de instalação no terminal
+- Baixe o tk.py e coloque em algum lugar do seu PATH
 
 ## O que é um teste?
 - Um teste define qual o comportamento esperado de um programa determinístico. Para uma determinada entrada, o programa deve gerar **sempre** a mesma saída.
@@ -456,8 +446,7 @@ output
 <<<<<<<<
 
 ```
-- Se não for informado o grade reduction, será de 100%
-- Se o grade informador for !%, será porporcional ao número de questões.
+- Se não for informado o grade reduction, será de proporcional à quantidade de testes.
 - O nome do caso é opcional.
 
 ## Rodando
