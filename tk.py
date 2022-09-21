@@ -166,17 +166,18 @@ class Solver:
 
     @staticmethod
     def __prepare_ts(solver: str) -> str:
-        #create a tempdir
+        filename = os.path.basename(solver)
         sourcedir = os.path.dirname(solver)
-        filename = solver.split(os.sep)[-1]
+        source_list = Solver.__get_files_by_ext(solver)
+        print("Using the following source files: " + str([os.path.basename(x) for x in source_list]))
         #compile the ts file
-        jsfile = os.path.join(sourcedir, "__" + filename[:-3] + ".js")
-        cmd = ["esbuild", solver, "--outfile=" + jsfile, "--format=cjs"]
+        cmd = ["esbuild"] + source_list + ["--outdir=" + sourcedir, "--format=cjs"]
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
         print(stdout)
         print(stderr)
         if return_code != 0:
             raise Runner.CompileError(stdout + stderr)
+        jsfile = os.path.join(sourcedir, filename[:-3] + ".js")
         return "node " + jsfile  # renaming solver to main
 
     # @staticmethod
@@ -199,8 +200,8 @@ class Solver:
     @staticmethod
     def __prepare_c_cpp(solver: str, pre_args: List[str], pos_args: list[str]) -> str:
         filename = os.path.basename(solver)
-        source_list = Solver.__get_files_by_ext(solver)
         tempdir = os.path.dirname(solver)
+        source_list = Solver.__get_files_by_ext(solver)
         print("Using the following source files: " + str([os.path.basename(x) for x in source_list]))
         
         exec_path = os.path.join(tempdir, ".a.out")
@@ -1834,14 +1835,17 @@ class Main:
             print("fail: folder ", index, " already exists, removing it first, and run the command again.")
             return
 
-        cache_url = "https://raw.githubusercontent.com/qxcode" + disc + "/arcade/master/base/" + index + "/.cache/"
+        index_url = "https://raw.githubusercontent.com/qxcode" + disc + "/arcade/master/base/" + index + "/"
+        cache_url = index_url + ".cache/"
 
+        # downloading Readme
         if Main.save_as(cache_url + "Readme.md", index + os.sep + "Readme.md"):
             print(index + os.sep + "Readme.md")
         else:
             print("Problem not found")
             return
 
+        # downloading mapi
         mapi_path = os.path.join(index + "mapi.json")
         if not Main.save_as(cache_url + "mapi.json", mapi_path):
             print("Problem not found")
@@ -1850,16 +1854,34 @@ class Main:
         with open(mapi_path) as f:
             loaded = json.load(f)
         os.remove(mapi_path)
-
         Main.unpack_json(loaded, index)
 
-        if len(loaded["required"]) == 0:
-            draft_path = os.path.join(index, "solver." + ext)
-            if Main.save_as(cache_url + "solver_draft." + ext, draft_path):
-                print(draft_path, "(Draft)")
-            else:
-                open(draft_path, "w")
-                print(draft_path, "(Empty)")
+        if len(loaded["required"]) == 1:
+            return
+
+        # creating source file for student
+        filename = "solver." if ext != "java" else "Solver."
+        draft_path = os.path.join(index, filename + ext)
+        if not Main.save_as(cache_url + "draft." + ext, draft_path):
+            open(draft_path, "w")
+            print(draft_path, "(Empty)")
+            return
+        
+        filelist = os.path.join(index, "filelist.txt")
+        if not Main.save_as(cache_url + "filelist.txt", filelist):
+            return
+        files = open(filelist, "r").read().splitlines()
+        os.remove(filelist)
+        for file in files:
+            filename = os.path.basename(file)
+            if not "." in filename: #folder
+                continue
+            fext = filename.split(".")[-1]
+            if fext == ext or ((fext == ".h" or fext == ".hpp") and ext == "cpp") or ((fext == ".h" and ext == ".c")):
+                Main.save_as(index_url + file, os.path.join(index, filename))
+                print(os.path.join(index, filename))
+
+
 
     @staticmethod
     def list(args):
