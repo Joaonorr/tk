@@ -1779,6 +1779,11 @@ class ITable:
 
 class Main:
     @staticmethod
+    def exec(args):
+        solver = Solver(args.target)
+        subprocess.run(solver.executable, shell=True)
+
+    @staticmethod
     def execute(args):
         if args.width is not None:
             Report.set_terminal_size(args.width)
@@ -1866,7 +1871,7 @@ class Main:
             open(draft_path, "w")
             print(draft_path, "(Empty)")
             return
-        
+        print(draft_path, "(Draft)")
         filelist = os.path.join(index, "filelist.txt")
         if not Main.save_as(cache_url + "filelist.txt", filelist):
             return
@@ -1951,6 +1956,11 @@ class Main:
         parser_l.add_argument('--display', '-d', action="store_true", help='display full test description.')
         parser_l.add_argument('--folders', '-f', metavar='T', type=str, nargs='+', help='folder list')
         parser_l.set_defaults(func=Main.list)
+
+        # exec
+        parser_e = subparsers.add_parser('exec', parents=[parent_basic], help='just run the solver without any test.')
+        parser_e.add_argument('target', metavar='T', type=str, help='target.')
+        parser_e.set_defaults(func=Main.exec)
 
         # run
         parser_r = subparsers.add_parser('run', parents=[parent_basic], help='run you solver.')
