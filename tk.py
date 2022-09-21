@@ -1882,7 +1882,7 @@ class Main:
             if not "." in filename: #folder
                 continue
             fext = filename.split(".")[-1]
-            if fext == ext or ((fext == ".h" or fext == ".hpp") and ext == "cpp") or ((fext == ".h" and ext == ".c")):
+            if fext == ext or ((fext == "h" or fext == "hpp") and ext == "cpp") or ((fext == "h" and ext == "c")):
                 Main.save_as(index_url + file, os.path.join(index, filename))
                 print(os.path.join(index, filename))
 

@@ -1,0 +1,5 @@
+param   : (b)ase : poo  │ (t)erm : 60   │ (c)ases    : all
+flags   : (v)iew : down │ (m)ark : show │ (f)ailures : first
+actions : (q)uit        │ (h)elp        │ 
+actions : (d)own        │ (e)val        │ (r)un
+$ 
