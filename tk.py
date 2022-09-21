@@ -1554,7 +1554,7 @@ class Actions:
 
 
 class ITable:
-    options_base = ["fup", "ed", "poo"]
+    options_base = ["poo", "ed", "fup"]
     options_term = ["40", "60", "80", "100", "120", "140", "160", "180", "200"]
     options_view = ["down", "side"]
     options_mark = ["show", "hide"]
