@@ -552,9 +552,8 @@ class Loader:
 
 class DiffMode(Enum):
     FIRST = "MODE: SHOW FIRST FAILURE ONLY"
-    NONE = "MODE: SHOW NONE FAILURES"
-    ALL = "MODE: SHOW ALL FAILURES"
-
+    NONE  = "MODE: SHOW NONE FAILURES"
+    ALL   = "MODE: SHOW ALL FAILURES"
 
 class Param:
 
@@ -1505,6 +1504,14 @@ class Actions:
         pass
 
     @staticmethod
+    def run(target):
+        if os.path.isdir(target):
+            solver = Wdir(target).load_solvers().solver
+        else:
+            solver = Solver(target)
+        subprocess.run(solver.executable, shell=True)
+
+    @staticmethod
     def list(target_list: List[str], folders: List[str], param: Param.Basic) -> List[Tuple[str, int]]:
         return ActionList.list(target_list, folders, param)
 
@@ -1551,7 +1558,8 @@ class ITable:
     options_term = ["40", "60", "80", "100", "120", "140", "160", "180", "200"]
     options_view = ["down", "side"]
     options_mark = ["show", "hide"]
-    options_exte = ["c", "cpp", "js", "ts", "py", "java", "hs"]
+    options_fail = ["first", "all"]
+    options_exte = ["c", "cpp", "js", "ts", "py", "java"]
 
     @staticmethod
     def choose(intro, opt_list, par = ""):
@@ -1565,7 +1573,7 @@ class ITable:
 
     @staticmethod
     def cls():
-        # os.system('cls' if os.name == 'nt' else 'clear')
+        #os.system('cls' if os.name == 'nt' else 'clear')
         pass
         
     @staticmethod
@@ -1601,19 +1609,35 @@ class ITable:
         return "down" + " " + label + " " + ext
 
     @staticmethod
-    def action_run(ui_list, mark_mode, view_mode, term_size) -> str:
+    def action_run(ui_list):
+        label = "" if len(ui_list) < 2 else ui_list[1]
+        label = ITable.choose_label(label)
+        Actions.run(label)
+        return "run" + " " + label
+
+    @staticmethod
+    def action_evaluate(ui_list, mark_mode, view_mode, term_size, fail_mode, case_index) -> str:
         label = "" if len(ui_list) < 2 else ui_list[1]
         label = ITable.choose_label(label)
         print("Running problem " + label + " ...")
         
         Report.set_terminal_size(int(term_size))
+
         param = Param.Basic().set_raw(mark_mode == "hide")
+
+        if case_index != "-1":
+            param.set_index(int(case_index))
+
+        if fail_mode == "first":
+            param.set_diff_mode(DiffMode.FIRST)
+        else:
+            param.set_diff_mode(DiffMode.ALL)
         if view_mode == "down":
             param.set_up_down(True)
-        param.set_diff_mode(DiffMode.ALL)
+
         Actions.execute([], [label], param)
 
-        return "run " + label
+        return "eval " + label
 
     @staticmethod
     def choose_base(ui_list: List[str]) -> str:
@@ -1629,6 +1653,19 @@ class ITable:
         return ITable.choose("Choose termsize ", ITable.options_term)
 
     @staticmethod
+    def choose_case(ui_list: List[str]) -> str:
+        # lambda function to check if a string is a int
+        is_int = lambda x: x.isdigit() or (x[0] == "-" and x[1:].isdigit())
+
+        if len(ui_list) == 2 and is_int(ui_list[1]):
+            return ui_list[1]
+        print("Choose case index to evaluate or -1 for all: ", end="")
+        try:
+            return str(int(input()))
+        except ValueError:
+            return "-1"
+
+    @staticmethod
     def create_default_config(configfile):
         config = configparser.ConfigParser()
         config["DEFAULT"] = {
@@ -1636,7 +1673,9 @@ class ITable:
             "term": ITable.options_term[0],
             "view": ITable.options_view[0],
             "mark": ITable.options_mark[0],
-            "last_cmd": ""
+            "fail": ITable.options_fail[0],
+            "case": "-1",
+            "last": ""
         }
         with open(configfile, "w") as f:
             config.write(f)
@@ -1648,6 +1687,11 @@ class ITable:
         if value == ITable.options_mark[1]:
             return ITable.options_mark[0]
         
+        if value == ITable.options_fail[0]:
+            return ITable.options_fail[1]
+        if value == ITable.options_fail[1]:
+            return ITable.options_fail[0]
+
         if value == ITable.options_view[0]:
             return ITable.options_view[1]
         if value == ITable.options_view[1]:
@@ -1658,19 +1702,32 @@ class ITable:
         
         pad = lambda s, w: s + (w - len(s)) * " "
 
-        base  = pad(config["DEFAULT"]["base"], 4).upper()
-        term  = pad(config["DEFAULT"]["term"], 4)
-        view  = pad(config["DEFAULT"]["view"], 4).upper()
+        base = pad(config["DEFAULT"]["base"], 4).upper()
+        term = pad(config["DEFAULT"]["term"], 4)
+        case =     config["DEFAULT"]["case"]
+        if case == "-1":
+            case = "ALL"
+        case = pad(case, 4)
+        view = pad(config["DEFAULT"]["view"], 4).upper()
         mark = pad(config["DEFAULT"]["mark"], 4).upper()
-        last_cmd = config["DEFAULT"]["last_cmd"]
+        fail = pad(config["DEFAULT"]["fail"], 4).upper()
+        last = config["DEFAULT"]["last"]
 
         # padding function using length
-        print("┌─────┬─────┬─────┬─────┬─────┬────┐")
-        print("│h.elp│b.ase│t.erm│v.iew│m.ark│r.un│")
-        print("├─────┼┈┈┈┈┈┼┈┈┈┈┈┼┈┈┈┈┈┼┈┈┈┈┈┼────┤")
-        print("│d.own│ {}│ {}│{} │{} │".format(base, term, view, mark) + "e.nd│");
-        print("└─────┴─────┴─────┴─────┴─────┴────┘")
-        print("(" + last_cmd + "): ", end="")
+        # print("┌─────┬─────┬─────┬─────┬─────┬────┐")
+        # print("│h.elp│b.ase│t.erm│v.iew│m.ark│r.un│")
+        # print("├─────┼┈┈┈┈┈┼┈┈┈┈┈┼┈┈┈┈┈┼┈┈┈┈┈┼────┤")
+        # print("│d.own│ {}│ {}│{} │{} │".format(base, term, view, mark) + "e.nd│");
+        # print("└─────┴─────┴─────┴─────┴─────┴────┘")
+        # print("(" + last_cmd + "): ", end="")
+        print("───────────┬────────────┬──────────────")
+        print("b.ase:{} │ t.erm: {}│ c.ase:{}".format(base, term, case))
+        print("v.iew:{} │ m.ark:{} │ f.ail:{}".format(view, mark, fail))
+        # print("───────────┼────────────┼──────────────")
+        print("d.own {} │ e.val {} │ r.un".format(" " * 4, " " * 4))
+        print("h.elp {} │ q.uit {} │ c.lear".format(" " * 4, " " * 4))
+        print("(" + last + ") $ ", end="")
+
 
     @staticmethod
     def validate_config(config):
@@ -1684,21 +1741,28 @@ class ITable:
             return False
         if "mark" not in config["DEFAULT"] or config["DEFAULT"]["mark"] not in ITable.options_mark:
             return False
-        if "last_cmd" not in config["DEFAULT"]:
+        if "fail" not in config["DEFAULT"] or config["DEFAULT"]["fail"] not in ITable.options_fail:
+            return False
+        if "case" not in config["DEFAULT"]:
+            return False
+        if "last" not in config["DEFAULT"]:
             return False
         return True
 
     @staticmethod
     def print_help():
         print("Digite a letra ou o comando e aperte enter.")
-        print("h ou help: mostra esse help.")
         print("b ou base: muda a base de dados entre as disciplinas.")
         print("t ou term: muda a largura do terminal utilizado para mostrar os erros.")
+        print("c ou case: define o index do caso de teste a ser executado ou -1 para todos")
         print("v ou view: alterna o modo de visualização de erros entre up_down e lado_a_lado.")
         print("m ou mark: show mostra os whitespaces e hide os esconde.")
+        print("f ou fail: alterna entre mostrar apenas o primeiro caso que falhar ou todos")
         print("d ou down: faz o download do problema utilizando o label e a extensão.")
-        print("r ou run : roda o problema utilizando sua solução contra os testes.")
-        print("e ou end : termina o programa.")
+        print("e ou eval: avalia o código do problema contra os casos de testes escolhidos")
+        print("r ou run : roda o problema.")
+        print("h ou help: mostra esse help.")
+        print("q ou quit: termina o programa.")
         print("Na linha de execução já aparece o último comando entre (), para reexecutar basta apertar enter.")
 
     @staticmethod
@@ -1730,6 +1794,7 @@ class ITable:
         config.read(configfile)
         
         if not ITable.validate_config(config):
+            print("debug nao valido")
             ITable.create_default_config(configfile)
             config.read(configfile)
 
@@ -1738,12 +1803,12 @@ class ITable:
 
             line = input()
             if line == "":
-                line = config["DEFAULT"]["last_cmd"]
+                line = config["DEFAULT"]["last"]
 
             ui_list = line.split(" ")
             cmd = ui_list[0]
 
-            if cmd == "e" or cmd == "end":
+            if cmd == "q" or cmd == "quit":
                 break
             elif cmd == "h" or cmd == "help":
                 ITable.print_help()
@@ -1760,12 +1825,24 @@ class ITable:
             elif cmd == "m" or cmd == "mark":
                 config["DEFAULT"]["mark"] = ITable.not_str(config["DEFAULT"]["mark"])
                 ITable.cls()
+            elif cmd == "f" or cmd == "fail":
+                config["DEFAULT"]["fail"] = ITable.not_str(config["DEFAULT"]["fail"])
+                ITable.cls()
+            elif cmd == "c" or cmd == "case":
+                config["DEFAULT"]["case"] = ITable.choose_case(ui_list)
+                ITable.cls()
             elif cmd == "d" or cmd == "down":
-                last_cmd = ITable.action_down(ui_list, config["DEFAULT"]["base"])
-                config["DEFAULT"]["last_cmd"] = last_cmd
+                last = ITable.action_down(ui_list, config["DEFAULT"]["base"])
             elif cmd == "r" or cmd == "run":
-                last_cmd = ITable.action_run(ui_list, config["DEFAULT"]["mark"], config["DEFAULT"]["view"], config["DEFAULT"]["term"])
-                config["DEFAULT"]["last_cmd"] = last_cmd
+                last = ITable.action_run(ui_list)
+                config["DEFAULT"]["last"] = last
+            elif cmd == "e" or cmd == "eval":
+                last = ITable.action_evaluate(ui_list, config["DEFAULT"]["mark"], 
+                                                       config["DEFAULT"]["view"], 
+                                                       config["DEFAULT"]["term"], 
+                                                       config["DEFAULT"]["fail"], 
+                                                       config["DEFAULT"]["case"])
+                config["DEFAULT"]["last"] = last
             else:
                 print("Invalid command")
 
@@ -1779,9 +1856,8 @@ class ITable:
 
 class Main:
     @staticmethod
-    def exec(args):
-        solver = Solver(args.target)
-        subprocess.run(solver.executable, shell=True)
+    def run(args):
+        Actions.run(args.target)
 
     @staticmethod
     def execute(args):
@@ -1960,7 +2036,7 @@ class Main:
         # exec
         parser_e = subparsers.add_parser('exec', parents=[parent_basic], help='just run the solver without any test.')
         parser_e.add_argument('target', metavar='T', type=str, help='target.')
-        parser_e.set_defaults(func=Main.exec)
+        parser_e.set_defaults(func=Main.run)
 
         # run
         parser_r = subparsers.add_parser('run', parents=[parent_basic], help='run you solver.')
