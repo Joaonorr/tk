@@ -646,7 +646,8 @@ class Wdir:
         elif len(s_list) == 1:
             self.solver = Solver(os.path.join(self.folder, s_list[0]))
         else:
-            raise Exception("fail: more than one solver found, you should have only one solver in folder")
+            print("fail: you have more than one 'solver.*' file in folder, rename or delete the unnecessary ones")
+            exit(1)
         return self
 
     def parse_sources(self):
@@ -1605,7 +1606,7 @@ class ITable:
         ext = ITable.choose("Choose extension ", ITable.options_exte, ext)
 
         print("{} {} {}".format(label, ext, base))
-        Main.down_exp(base, label, ext)
+        Down.entry_unpack(base, label, ext)
         return "down" + " " + label + " " + ext
 
     @staticmethod
@@ -1856,6 +1857,125 @@ class ITable:
             config.write(f)
 
 
+class Down:
+
+    @staticmethod
+    def entry_args(args):
+        Main.entry_unpack(args.disc, args.index, args.extension)
+
+    @staticmethod
+    def create_file(content, path, label=""):
+        with open(path, "w") as f:
+            f.write(content)
+        print(path, label)
+
+    @staticmethod
+    def unpack_json(loaded, index):
+        # extracting all files to folder
+        for entry in loaded["upload"]:
+            if entry["name"] == "vpl_evaluate.cases":
+                Down.compare_and_save(entry["contents"], os.path.join(index, "cases.tio"))
+
+        for entry in loaded["keep"]:
+            Down.compare_and_save(entry["contents"], os.path.join(index, entry["name"]))
+
+        for entry in loaded["required"]:
+            path = os.path.join(index, entry["name"])
+            if os.path.exists(path):
+                print("File already exists: " + path + ". Replace? (y/n):", end="")
+                line = input()
+                if line.lower() != "y":
+                    return
+            Main.create_file(entry["contents"], path, "(Required)")
+
+
+    @staticmethod
+    def compare_and_save(content, path):
+        if not os.path.exists(path):
+            with open(path, "w") as f:
+                f.write(content)
+            print(path + " (New)")
+        else:
+            if open(path).read() != content:
+                print(path + " (Updated)")
+                with open(path, "w") as f:
+                    f.write(content)
+            else:
+                print(path + " (Unchanged)")
+    
+    @staticmethod
+    def down_problem_def(index, cache_url) -> Tuple[str, str]:
+        # downloading Readme
+        readme = index + os.sep + "Readme.md"
+        [tempfile, _content] = urllib.request.urlretrieve(cache_url + "Readme.md")
+        Down.compare_and_save(open(tempfile).read(), readme)
+        
+        # downloading mapi
+        mapi = os.path.join(index, "mapi.json")
+        urllib.request.urlretrieve(cache_url + "mapi.json", mapi)
+        return (readme, mapi)
+
+    @staticmethod
+    def entry_unpack(disc, index, ext):
+
+        # create dir
+        if not os.path.exists(index):
+            os.mkdir(index)
+        else:
+            print("problem folder", index, "found, merging content.")
+
+        index_url = "https://raw.githubusercontent.com/qxcode" + disc + "/arcade/master/base/" + index + "/"
+        cache_url = index_url + ".cache/"
+        
+        # downloading Readme
+        try:
+            [readme_path, mapi_path] = Down.down_problem_def(index, cache_url)
+        except urllib.error.HTTPError:
+            print("Problem not found")
+            return
+
+        with open(mapi_path) as f:
+            loaded = json.load(f)
+        os.remove(mapi_path)
+        Down.unpack_json(loaded, index)
+
+        if len(loaded["required"]) == 1: # you already have the students file
+            return
+
+        # creating source file for student
+
+        try:
+            filename = "solver." if ext != "java" else "Solver."
+            draft_path = os.path.join(index, filename + ext)
+            if os.path.exists(draft_path):
+                print(draft_path + " : File already exists, replace? (y/n): ", end="")
+                line = input()
+                if line.lower() != "y":
+                    print(draft_path + " : (skipped)")
+                    return
+            urllib.request.urlretrieve(cache_url + "draft." + ext, draft_path)
+            print(draft_path, "(Draft)")
+        except urllib.error.HTTPError:
+            open(draft_path, "w").close()
+            print(draft_path, "(Empty)")
+            return
+
+        try:
+            filelist = os.path.join(index, "filelist.txt")
+            urllib.request.urlretrieve(cache_url + "filelist.txt", filelist)
+            files = open(filelist, "r").read().splitlines()
+            os.remove(filelist)
+
+            for file in files:
+                filename = os.path.basename(file)
+                fext = filename.split(".")[-1]
+                if fext == ext or ((fext == "h" or fext == "hpp") and ext == "cpp") or ((fext == "h" and ext == "c")):
+                    filepath = os.path.join(index, filename)
+                    # urllib.request.urlretrieve(index_url + file, filepath)
+                    [tempfile, _content] = urllib.request.urlretrieve(index_url + file)
+                    Down.compare_and_save(open(tempfile).read(), filepath)
+        except urllib.error.HTTPError:
+            return
 
 class Main:
     @staticmethod
@@ -1878,94 +1998,28 @@ class Main:
             return 0
         return 1
 
-    @staticmethod
-    def save_as(file_url, filename) -> bool:
-        try:
-            urllib.request.urlretrieve(file_url, filename)
-        except urllib.error.HTTPError:
-            return False
-        return True
+    # filetype would be "problem" ou "solver"
+    # @staticmethod
+    # def download_file(file_url, filename, filetype: str) -> bool:
+    #     # se não existe, baixa e retorna
+    #     if not os.path.exists(filename):
+    #         urllib.request.urlretrieve(file_url, filename)
+    #         print(filename + " (new)")
+    #         return True
+    #     # se existe e eh solver, tem que perguntar
+    #     elif filetype == "solver":
+    #         print(filename + " : Solver file already exists! Rename ou remove first.", end="")
 
-    @staticmethod
-    def create_file(content, path, label=""):
-        with open(path, "w") as f:
-            f.write(content)
-        print(path, label)
-
-    @staticmethod
-    def unpack_json(loaded, index):
-        # extracting all files to folder
-        for entry in loaded["upload"]:
-            if entry["name"] == "vpl_evaluate.cases":
-                Main.create_file(entry["contents"], os.path.join(index, "cases.tio"))
-
-        for entry in loaded["keep"]:
-            Main.create_file(entry["contents"], os.path.join(index, entry["name"]))
-
-        for entry in loaded["required"]:
-            Main.create_file(entry["contents"], os.path.join(index, entry["name"]), "(Required)")
-
-    @staticmethod
-    def down(args):
-        Main.down_exp(args.disc, args.index, args.extension)
-
-    @staticmethod
-    def down_exp(disc, index, ext):
-
-        # create dir
-        if not os.path.exists(index):
-            os.mkdir(index)
-        else:
-            print("fail: folder ", index, " already exists, removing it first, and run the command again.")
-            return
-
-        index_url = "https://raw.githubusercontent.com/qxcode" + disc + "/arcade/master/base/" + index + "/"
-        cache_url = index_url + ".cache/"
-
-        # downloading Readme
-        if Main.save_as(cache_url + "Readme.md", index + os.sep + "Readme.md"):
-            print(index + os.sep + "Readme.md")
-        else:
-            print("Problem not found")
-            return
-
-        # downloading mapi
-        mapi_path = os.path.join(index + "mapi.json")
-        if not Main.save_as(cache_url + "mapi.json", mapi_path):
-            print("Problem not found")
-            return
-            
-        with open(mapi_path) as f:
-            loaded = json.load(f)
-        os.remove(mapi_path)
-        Main.unpack_json(loaded, index)
-
-        if len(loaded["required"]) == 1:
-            return
-
-        # creating source file for student
-        filename = "solver." if ext != "java" else "Solver."
-        draft_path = os.path.join(index, filename + ext)
-        if not Main.save_as(cache_url + "draft." + ext, draft_path):
-            open(draft_path, "w")
-            print(draft_path, "(Empty)")
-            return
-        print(draft_path, "(Draft)")
-        filelist = os.path.join(index, "filelist.txt")
-        if not Main.save_as(cache_url + "filelist.txt", filelist):
-            return
-        files = open(filelist, "r").read().splitlines()
-        os.remove(filelist)
-        for file in files:
-            filename = os.path.basename(file)
-            if not "." in filename: #folder
-                continue
-            fext = filename.split(".")[-1]
-            if fext == ext or ((fext == "h" or fext == "hpp") and ext == "cpp") or ((fext == "h" and ext == "c")):
-                Main.save_as(index_url + file, os.path.join(index, filename))
-                print(os.path.join(index, filename))
-
-
+    #         return False
+    #     elif filetype == "problem":
+    #         content = open(filename, "r").read()
+    #         urllib.request.urlretrieve(file_url, filename)
+    #         new_content = open(filename, "r").read()
+    #         if content != new_content:
+    #             print(filename + " (new)")
+    #         else:
+    #             print(filename + " (old)")
+    #     return false
 
     @staticmethod
     def list(args):
@@ -2069,7 +2123,7 @@ class Main:
         parser_d.add_argument('disc', type=str, help=" [ fup | ed | poo ]")
         parser_d.add_argument('index', type=str, help="3 digits label like 025")
         parser_d.add_argument('extension', type=str, help="[ cpp | js | py | java | c ]")
-        parser_d.set_defaults(func=Main.down)
+        parser_d.set_defaults(func=Down.entry_args)
 
         # tk_update
         parser_tkupdate = subparsers.add_parser('tkupdate', help='update tk script(linux only).')
