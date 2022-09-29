@@ -217,7 +217,22 @@ fail: pet esta morto
 $end
 <<<<<<<<
 
->>>>>>>> exemplo2
+>>>>>>>> fraqueza
+init 5 10 10
+play
+play
+play
+end
+========
+$init 5 10 10
+$play
+$play
+$play
+fail: pet morreu de fraqueza
+$end
+<<<<<<<<
+
+>>>>>>>> morto de fraqueza
 init 5 10 10
 play
 play
@@ -238,7 +253,7 @@ E:0/5, S:7/10, L:1/10, D:3, I:3
 $end
 <<<<<<<<
 
->>>>>>>> exemplo3
+>>>>>>>> fome
 init 10 3 10
 play
 play

@@ -1740,12 +1740,12 @@ class ITable:
         last = yellow(config["DEFAULT"]["last"])
 
         menu = ""
-        menu += ("───────────┬────────────┬──────────────") + "\n"
-        menu += ("b.ase:{} │ t.erm: {}│ c.ase:{}".format(base, term, case)) + "\n"
-        menu += ("v.iew:{} │ m.ark:{} │ f.ail:{}".format(view, mark, fail)) + "\n"
-        menu += ("d.own {} │ e.xec {} │ r.un".format(" " * 4, " " * 4)) + "\n"
-        menu += ("h.elp {} │ q.uit {} │ ".format(" " * 4, " " * 4)) + "\n"
-        menu += ("(" + last + ") $ ")
+        menu += ("─────────────┬─────────────┬──────────────") + "\n"
+        menu += ("@ b.ase:{} │⧦ t.erm: {}│🅝 c.ase:{}".format(base, term, case)) + "\n"
+        menu += ("🗘 v.iew:{} │↵ m.ark:{} │⤫ f.ail:{}".format(view, mark, fail)) + "\n"
+        menu += ("⬇ d.own {} │▶ e.xec {} │☑ r.un".format(" " * 4, " " * 4)) + "\n"
+        menu += ("? h.elp {} │⏻ q.uit {} │  ".format(" " * 4, " " * 4)) + "\n"
+        menu += ("  (" + last + ") $ ")
 
         if color_enabled:
             output = io.StringIO()
