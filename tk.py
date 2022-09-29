@@ -4,6 +4,7 @@
 # exec pip install termcolor in your system to enable colors
 
 from __future__ import annotations
+import math
 
 import sys
 try:
@@ -35,7 +36,8 @@ class Unit:
         self.case = case  # name
         self.input = inp  # input
         self.output = outp  # expected output
-        self.grade = grade  # None represents proportional gr, 100 represents all
+        self.grade: Optional[int] = grade  # None represents proportional gr, 100 represents all
+        self.grade_reduction: int = 0 #if grade is None, this atribute should be filled with the right grade reduction
         self.index = 0
         self.duplicated: Optional[int] = None
 
@@ -173,8 +175,7 @@ class Solver:
         #compile the ts file
         cmd = ["esbuild"] + source_list + ["--outdir=" + sourcedir, "--format=cjs"]
         return_code, stdout, stderr = Runner.subprocess_run(cmd)
-        print(stdout)
-        print(stderr)
+        print(stdout + stderr)
         if return_code != 0:
             raise Runner.CompileError(stdout + stderr)
         jsfile = os.path.join(sourcedir, filename[:-3] + ".js")
@@ -662,7 +663,8 @@ class Wdir:
         if loading_failures > 0 and loading_failures == len(self.source_list):
             raise FileNotFoundError("failure: none source found")
         self.unit_list = sum(self.pack_list, [])
-        self.__number_and_mark()
+        self.__number_and_mark_duplicated()
+        self.__calculate_grade()
         return self
 
     def filter(self, index: Optional[int]):
@@ -673,7 +675,15 @@ class Wdir:
                 raise ValueError("Index Number out of bounds: " + str(index))
         return self
 
-    def __number_and_mark(self):
+    def __calculate_grade(self):
+        unique_count = len([x for x in self.unit_list if not x.duplicated])
+        for unit in self.unit_list:
+            if unit.grade is None:
+                unit.grade_reduction = math.floor(100 / unique_count)
+            else:
+                unit.grade_reduction = unit.grade
+
+    def __number_and_mark_duplicated(self):
         new_list = []
         index = 0
         for unit in self.unit_list:
@@ -935,7 +945,7 @@ class Report:
         Report.__term_width = value
 
     @staticmethod
-    def centralize(text, sep=' ', left_border: Optional[str] = None, right_border: Optional[str] = None):
+    def centralize(text, sep=' ', left_border: Optional[str] = None, right_border: Optional[str] = None) -> str:
         if left_border is None:
             left_border = sep
         if right_border is None:
@@ -978,7 +988,7 @@ class Report:
     @staticmethod
     def format_header(user: Optional[str], unit: Unit, source_fill: int = 0, case_fill: int = 0):
         front = ""
-        grade = str(unit.grade).zfill(3) if unit.grade else "---"
+        grade = str(unit.grade_reduction).zfill(3)
         if not user:
             front += Symbol.neutral
         elif user == unit.output:
@@ -1378,6 +1388,17 @@ class ActionExecute:
         pass
 
     @staticmethod
+    def calc_grade(wdir: Wdir) -> int:
+        grade = 100
+        for case, answer in zip(wdir.unit_list, wdir.solver.user):
+            if not case.duplicated and case.output != answer:
+                grade -= case.grade_reduction
+        return max(0, grade)
+
+
+
+
+    @staticmethod
     def execute(target_list: List[str], folders: List[str], param: Param.Basic) \
             -> List[Tuple[str, int, List[Tuple[str, int]]]]:
 
@@ -1400,6 +1421,10 @@ class ActionExecute:
             diffs = ActionExecute.report_diffs(wdir.solver, wdir.unit_list, param)
             if diffs != "":
                 Logger.write(diffs)
+            grade = ActionExecute.calc_grade(wdir)
+            print(Report.centralize("FINAL GRADE: " + str(grade)))
+
+
 
         return ActionExecute.calc_passed(wdir_list)
 
@@ -1510,6 +1535,7 @@ class Actions:
             solver = Wdir(target).load_solvers().solver
         else:
             solver = Solver(target)
+        print(Report.centralize(" Free Running Mode ", Symbol.hbar))
         subprocess.run(solver.executable, shell=True)
 
     @staticmethod
