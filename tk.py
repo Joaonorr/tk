@@ -45,12 +45,13 @@ class Unit:
 class Symbol:
     opening = "=>"
     neutral = ""
-    mark_size = len(neutral)
     success = ""
     failure = ""
     wrong = ""
     compilation = ""
     execution = ""
+    unequal = ""
+    equalbar= ""
     hbar = "─"
     vbar = "│"
     whitespace = "\u2E31"  # interpunct
@@ -61,21 +62,30 @@ class Symbol:
         pass
 
     @staticmethod
-    def set_asc_only(only: bool):
-        Symbol.neutral = "(.)" if only else "(»)"  # u"\u2610"  # ☐
-        Symbol.mark_size = len(Symbol.neutral)
-        Symbol.success = "(S)" if only else "(✓)"
-        Symbol.failure = "(X)" if only else "(✗)"
-        Symbol.wrong = "(W)" if only else "(ω)"
-        Symbol.compilation = "(C)" if only else "(ϲ)"
-        Symbol.execution = "(E)" if only else "(ϵ)"
+    def initialize(asc2only: bool):
+        Symbol.neutral = "." if asc2only else "»"  # u"\u2610"  # ☐
+        Symbol.success = "S" if asc2only else "✓"
+        Symbol.failure = "X" if asc2only else "✗"
+        Symbol.wrong = "W" if asc2only else "ω"
+        Symbol.compilation = "C" if asc2only else "ϲ"
+        Symbol.execution = "E" if asc2only else "ϵ"
+        Symbol.unequal = "#" if asc2only else "≠"
+        Symbol.equalbar = "|" if asc2only else "│"
 
-    @staticmethod
-    def get_core_symbol(symbol):
-        return symbol[1]
+        if color_enabled:
+            Symbol.opening     = colored(Symbol.opening, "blue")
+            Symbol.neutral     = colored(Symbol.neutral, "blue")
 
+            Symbol.success     = colored(Symbol.success, "green")
+            Symbol.failure     = colored(Symbol.failure, "red")
+            
+            Symbol.wrong       = colored(Symbol.wrong,       "yellow")
+            Symbol.compilation = colored(Symbol.compilation, "yellow")
+            Symbol.execution   = colored(Symbol.execution,   "yellow")
+            Symbol.unequal     = colored(Symbol.unequal,     "red")
+            Symbol.equalbar    = colored(Symbol.equalbar,    "green")
 
-Symbol.set_asc_only(asc2only)  # inicalizacao estatica
+Symbol.initialize(asc2only)  # inicalizacao estatica
 
 
 class Solver:
@@ -293,16 +303,6 @@ class Logger:
             Logger._level -= 1
 
     @staticmethod
-    def _colorize(data: str):
-        return data.replace(Symbol.failure, colored(Symbol.failure, 'red')).\
-                    replace(Symbol.opening, colored(Symbol.opening, 'blue')). \
-                    replace(Symbol.success, colored(Symbol.success, 'green')). \
-                    replace(Symbol.wrong, colored(Symbol.wrong, 'yellow')). \
-                    replace(Symbol.execution, colored(Symbol.execution, 'yellow')). \
-                    replace(Symbol.compilation, colored(Symbol.compilation, 'yellow')). \
-                    replace(Symbol.neutral, colored(Symbol.neutral, 'blue'))
-
-    @staticmethod
     def write(data: str, level: Optional[int] = None, relative: Optional[int] = None):
         if level:
             Logger._level += level
@@ -313,11 +313,7 @@ class Logger:
         else:
             data_formatted = Logger._buffer.write(data, Logger._level)
         if Logger._print_enabled and not Logger._store:
-            if color_enabled:
-                data_output = Logger._colorize(data_formatted)
-            else:
-                data_output = data_formatted
-            print(data_output, end='', flush=True)
+            print(data_formatted, end='', flush=True)
         if relative:
             Logger._level -= relative
 
@@ -899,9 +895,9 @@ class Execution:
         for i in range(len(unit_list)):
             solver.user[i] = Execution.__execute_single_case(solver.executable, unit_list[i].input)
             if solver.user[i] == unit_list[i].output:
-                Logger.write(Symbol.get_core_symbol(Symbol.success))
+                Logger.write(Symbol.success)
             else:
-                Logger.write(Symbol.get_core_symbol(Symbol.failure))
+                Logger.write(Symbol.failure)
 
     @staticmethod
     def __check_all_answers_right(solver: Solver, unit_list: List[Unit]) -> bool:
@@ -990,11 +986,11 @@ class Report:
         front = ""
         grade = str(unit.grade_reduction).zfill(3)
         if not user:
-            front += Symbol.neutral
+            front += "(" + Symbol.neutral + ")"
         elif user == unit.output:
-            front += Symbol.success
+            front += "(" + Symbol.success + ")"
         else:
-            front += Symbol.failure
+            front += "(" + Symbol.failure + ")"
         front += "[" + str(unit.index).zfill(2) + "] GR:" + grade
         line = front + " " + unit.source.ljust(source_fill) + " (" + unit.case.ljust(case_fill) + ")"
         gr = "      " if unit.duplicated is None else " [" + str(unit.duplicated).zfill(2) + "] "
@@ -1034,9 +1030,9 @@ class Report:
 
         for line in range(size):
             if line < len(ta) and line < len(tb) and ta[line] == tb[line]:
-                data[line][middle] = sep
+                data[line][middle] = Symbol.equalbar
             else:
-                data[line][middle] = "≠"
+                data[line][middle] = Symbol.unequal
 
         for line in range(len(ta)):
             for col in range(len(ta[line])):
@@ -1065,8 +1061,8 @@ class Report:
     @staticmethod
     # return a tuple of two strings with the diff and the first two mismatch line rendered
     def render_down_diff(a_text: str, b_text: str) -> Tuple[str, str]:
-        char_error = "≠ "
-        char_equal = "│ "
+        char_error = Symbol.unequal + " "
+        char_equal = Symbol.equalbar + " "
 
         a_lines = a_text.splitlines()
         b_lines = b_text.splitlines()
@@ -1726,28 +1722,42 @@ class ITable:
 
     @staticmethod
     def print_header(config):
-        
-        pad = lambda s, w: s + (w - len(s)) * " "
+        def pad(s, w):
+            return s + " " * (w - len(s))
+        def yellow(s):
+            return colored(s, "yellow") if color_enabled else s
 
-        base = pad(config["DEFAULT"]["base"], 4).upper()
-        term = pad(config["DEFAULT"]["term"], 4)
+
+        base = yellow(pad(config["DEFAULT"]["base"], 4).upper())
+        term = yellow(pad(config["DEFAULT"]["term"], 4))
         case =     config["DEFAULT"]["case"]
         if case == "-1":
             case = "ALL"
-        case = pad(case, 4)
-        view = pad(config["DEFAULT"]["view"], 4).upper()
-        mark = pad(config["DEFAULT"]["mark"], 4).upper()
-        fail = pad(config["DEFAULT"]["fail"], 4).upper()
-        last = config["DEFAULT"]["last"]
+        case = yellow(pad(case, 4))
+        view = yellow(pad(config["DEFAULT"]["view"], 4).upper())
+        mark = yellow(pad(config["DEFAULT"]["mark"], 4).upper())
+        fail = yellow(pad(config["DEFAULT"]["fail"], 4).upper())
+        last = yellow(config["DEFAULT"]["last"])
 
+        menu = ""
+        menu += ("───────────┬────────────┬──────────────") + "\n"
+        menu += ("b.ase:{} │ t.erm: {}│ c.ase:{}".format(base, term, case)) + "\n"
+        menu += ("v.iew:{} │ m.ark:{} │ f.ail:{}".format(view, mark, fail)) + "\n"
+        menu += ("d.own {} │ e.xec {} │ r.un".format(" " * 4, " " * 4)) + "\n"
+        menu += ("h.elp {} │ q.uit {} │ ".format(" " * 4, " " * 4)) + "\n"
+        menu += ("(" + last + ") $ ")
 
-        print("───────────┬────────────┬──────────────")
-        print("b.ase:{} │ t.erm: {}│ c.ase:{}".format(base, term, case))
-        print("v.iew:{} │ m.ark:{} │ f.ail:{}".format(view, mark, fail))
-        # print("───────────┼────────────┼──────────────")
-        print("d.own {} │ e.xec {} │ r.un".format(" " * 4, " " * 4))
-        print("h.elp {} │ q.uit {} │ ".format(" " * 4, " " * 4))
-        print("(" + last + ") $ ", end="")
+        if color_enabled:
+            output = io.StringIO()
+            for i in range(0, len(menu) - 1):
+                if menu[i + 1] == ".":
+                    output.write(colored(menu[i], "red"))
+                else:
+                    output.write(menu[i])
+            output.write(menu[-1])
+            menu = output.getvalue()
+
+        print(menu, end="")
 
 
     @staticmethod
