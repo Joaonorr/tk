@@ -1610,11 +1610,11 @@ class ITable:
         return "down" + " " + label + " " + ext
 
     @staticmethod
-    def action_run(ui_list):
+    def action_exec(ui_list):
         label = "" if len(ui_list) < 2 else ui_list[1]
         label = ITable.choose_label(label)
         Actions.run(label)
-        return "run" + " " + label
+        return "exec" + " " + label
 
     @staticmethod
     def action_evaluate(ui_list, mark_mode, view_mode, term_size, fail_mode, case_index) -> str:
@@ -1638,7 +1638,7 @@ class ITable:
 
         Actions.execute([], [label], param)
 
-        return "eval " + label
+        return "run " + label
 
     @staticmethod
     def choose_base(ui_list: List[str]) -> str:
@@ -1714,19 +1714,13 @@ class ITable:
         fail = pad(config["DEFAULT"]["fail"], 4).upper()
         last = config["DEFAULT"]["last"]
 
-        # padding function using length
-        # print("┌─────┬─────┬─────┬─────┬─────┬────┐")
-        # print("│h.elp│b.ase│t.erm│v.iew│m.ark│r.un│")
-        # print("├─────┼┈┈┈┈┈┼┈┈┈┈┈┼┈┈┈┈┈┼┈┈┈┈┈┼────┤")
-        # print("│d.own│ {}│ {}│{} │{} │".format(base, term, view, mark) + "e.nd│");
-        # print("└─────┴─────┴─────┴─────┴─────┴────┘")
-        # print("(" + last_cmd + "): ", end="")
+
         print("───────────┬────────────┬──────────────")
         print("b.ase:{} │ t.erm: {}│ c.ase:{}".format(base, term, case))
         print("v.iew:{} │ m.ark:{} │ f.ail:{}".format(view, mark, fail))
         # print("───────────┼────────────┼──────────────")
-        print("d.own {} │ e.val {} │ r.un".format(" " * 4, " " * 4))
-        print("h.elp {} │ q.uit {} │ c.lear".format(" " * 4, " " * 4))
+        print("d.own {} │ e.xec {} │ r.un".format(" " * 4, " " * 4))
+        print("h.elp {} │ q.uit {} │ ".format(" " * 4, " " * 4))
         print("(" + last + ") $ ", end="")
 
 
@@ -1762,8 +1756,8 @@ class ITable:
         print("m ou mark: alterna entre mostrar os whitespaces e escondê-los.")
         print("")
         print("d ou down: faz o download do problema utilizando o label e a extensão.")
-        print("e ou eval: avalia o código do problema contra os casos de testes escolhidos.")
-        print("r ou run : roda o problema.")
+        print("e ou exec: roda o problema esperando a entrada do usuário.")
+        print("r ou run : avalia o código do problema contra os casos de testes escolhidos.")
         print("")
         print("h ou help: mostra esse help.")
         print("q ou quit: termina o programa.")
@@ -1837,10 +1831,10 @@ class ITable:
                 ITable.cls()
             elif cmd == "d" or cmd == "down":
                 last = ITable.action_down(ui_list, config["DEFAULT"]["base"])
-            elif cmd == "r" or cmd == "run":
-                last = ITable.action_run(ui_list)
+            elif cmd == "e" or cmd == "exec":
+                last = ITable.action_exec(ui_list)
                 config["DEFAULT"]["last"] = last
-            elif cmd == "e" or cmd == "eval":
+            elif cmd == "r" or cmd == "run":
                 last = ITable.action_evaluate(ui_list, config["DEFAULT"]["mark"], 
                                                        config["DEFAULT"]["view"], 
                                                        config["DEFAULT"]["term"], 
