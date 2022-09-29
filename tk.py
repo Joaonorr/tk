@@ -2165,7 +2165,7 @@ class Main:
 
         args = parser.parse_args()
         if len(sys.argv) == 1:
-            ITable.main()
+            print("You must call a subcommand. Use --help for more information.")
         else:
             try:
                 args.func(args)
