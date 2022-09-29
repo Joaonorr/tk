@@ -2165,7 +2165,7 @@ class Main:
 
         args = parser.parse_args()
         if len(sys.argv) == 1:
-            Actions.execute([""], [], Param.Basic())
+            ITable.main()
         else:
             try:
                 args.func(args)
