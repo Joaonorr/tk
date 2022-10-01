@@ -7,11 +7,6 @@ from __future__ import annotations
 import math
 
 import sys
-try:
-    from termcolor import colored
-    color_enabled = True
-except ModuleNotFoundError:
-    color_enabled = False
 from enum import Enum
 from typing import List, Tuple, Any, Optional
 import os
@@ -41,6 +36,20 @@ class Unit:
         self.index = 0
         self.duplicated: Optional[int] = None
 
+class Color:
+    PINK    = '\033[95m'
+    BLUE    = '\u001b[34m'
+    MAGENTA = '\u001b[35m'
+    CYAN    = '\u001b[36m'
+    GREEN   = '\u001b[32m'
+    YELLOW  = '\u001b[33m'
+    RED     = '\u001b[31m'
+    RESET   = '\u001b[0m'
+    BOLD    = '\033[1m'
+    ULINE   = '\033[4m'
+
+def colored(text: str, color: str) -> str:
+    return color + text + Color.RESET
 
 class Symbol:
     opening = "=>"
@@ -72,18 +81,18 @@ class Symbol:
         Symbol.unequal = "#" if asc2only else "≠"
         Symbol.equalbar = "|" if asc2only else "│"
 
-        if color_enabled:
-            Symbol.opening     = colored(Symbol.opening, "blue")
-            Symbol.neutral     = colored(Symbol.neutral, "blue")
 
-            Symbol.success     = colored(Symbol.success, "green")
-            Symbol.failure     = colored(Symbol.failure, "red")
-            
-            Symbol.wrong       = colored(Symbol.wrong,       "yellow")
-            Symbol.compilation = colored(Symbol.compilation, "yellow")
-            Symbol.execution   = colored(Symbol.execution,   "yellow")
-            Symbol.unequal     = colored(Symbol.unequal,     "red")
-            Symbol.equalbar    = colored(Symbol.equalbar,    "green")
+        Symbol.opening     = colored(Symbol.opening, Color.BLUE)
+        Symbol.neutral     = colored(Symbol.neutral, Color.BLUE)
+
+        Symbol.success     = colored(Symbol.success, Color.GREEN)
+        Symbol.failure     = colored(Symbol.failure, Color.RED)
+        
+        Symbol.wrong       = colored(Symbol.wrong,       Color.YELLOW)
+        Symbol.compilation = colored(Symbol.compilation, Color.YELLOW)
+        Symbol.execution   = colored(Symbol.execution,   Color.YELLOW)
+        Symbol.unequal     = colored(Symbol.unequal,     Color.RED)
+        Symbol.equalbar    = colored(Symbol.equalbar,    Color.GREEN)
 
 Symbol.initialize(asc2only)  # inicalizacao estatica
 
@@ -1725,7 +1734,7 @@ class ITable:
         def pad(s, w):
             return s + " " * (w - len(s))
         def yellow(s):
-            return colored(s, "yellow") if color_enabled else s
+            return colored(s, Color.YELLOW)
 
 
         base = yellow(pad(config["DEFAULT"]["base"], 4).upper())
@@ -1737,7 +1746,7 @@ class ITable:
         view = yellow(pad(config["DEFAULT"]["view"], 4).upper())
         mark = yellow(pad(config["DEFAULT"]["mark"], 4).upper())
         fail = yellow(pad(config["DEFAULT"]["fail"], 4).upper())
-        last = yellow(config["DEFAULT"]["last"])
+        last = colored(config["DEFAULT"]["last"], Color.BLUE)
 
         menu = ""
         menu += ("╭────────────╮╭─── ? h.elp ────╮╭─────────────╮") + "\n"
@@ -1745,17 +1754,17 @@ class ITable:
         menu += ("│ 🮛 t.erm:{} │   ▶ e.xec{}│ ↵ m.ark:{}  │".format(term, " " * 4, mark)) + "\n"
         menu += ("│ 🅝 c.ase:{}╭╯   ✓ r.un{} ╰╮🯀 f.ail:{} │".format(case, " " * 4, fail)) + "\n"
         menu += ("╰────────────╯╰─── ⏻ q.uit ────╯╰─────────────╯") + "\n"
-        menu += "[" + last + "] $ "
+        menu += "$ [" + last + "] "
 
-        if color_enabled:
-            output = io.StringIO()
-            for i in range(0, len(menu) - 1):
-                if menu[i + 1] == ".":
-                    output.write(colored(menu[i], "red"))
-                else:
-                    output.write(menu[i])
-            output.write(menu[-1])
-            menu = output.getvalue()
+
+        output = io.StringIO()
+        for i in range(0, len(menu) - 1):
+            if menu[i + 1] == ".":
+                output.write(colored(menu[i], Color.RED))
+            else:
+                output.write(menu[i])
+        output.write(menu[-1])
+        menu = output.getvalue()
 
         print(menu, end="")
 
@@ -2028,28 +2037,6 @@ class Main:
             return 0
         return 1
 
-    # filetype would be "problem" ou "solver"
-    # @staticmethod
-    # def download_file(file_url, filename, filetype: str) -> bool:
-    #     # se não existe, baixa e retorna
-    #     if not os.path.exists(filename):
-    #         urllib.request.urlretrieve(file_url, filename)
-    #         print(filename + " (new)")
-    #         return True
-    #     # se existe e eh solver, tem que perguntar
-    #     elif filetype == "solver":
-    #         print(filename + " : Solver file already exists! Rename ou remove first.", end="")
-
-    #         return False
-    #     elif filetype == "problem":
-    #         content = open(filename, "r").read()
-    #         urllib.request.urlretrieve(file_url, filename)
-    #         new_content = open(filename, "r").read()
-    #         if content != new_content:
-    #             print(filename + " (new)")
-    #         else:
-    #             print(filename + " (old)")
-    #     return false
 
     @staticmethod
     def list(args):
