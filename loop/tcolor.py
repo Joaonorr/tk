@@ -72,4 +72,6 @@ class Colored:
 #     # print(len(ovolimpo))
 #     # # ulen_test()
 
-print(Colored.clean(Colored()('ovo', Color.GREEN)))
+x = Colored()('ovo', Color.GREEN)
+for i, c in enumerate(x):
+    print(i, c)

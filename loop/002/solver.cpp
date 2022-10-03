@@ -21,9 +21,11 @@ public:
     }
 
     void fuel(int gas) {
+        (void) gas;
     }
 
     void drive(int km) {
+        (void) km;
     }
 
     std::string str() {

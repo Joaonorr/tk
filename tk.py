@@ -72,6 +72,10 @@ class Colored:
         return text + ' ' * (width - Colored.len(text))
 
     @staticmethod
+    def center(text: str, width: int, filler) -> str:
+        return filler * ((width - Colored.len(text)) // 2) + text + filler * ((width - Colored.len(text) + 1) // 2)
+
+    @staticmethod
     def remove_colors(text: str) -> str:
         for color in Colored.__map.values():
             text = text.replace(color, '')
@@ -590,7 +594,6 @@ class Loader:
 class DiffMode(Enum):
     FIRST = "MODE: SHOW FIRST FAILURE ONLY"
     NONE  = "MODE: SHOW NONE FAILURES"
-    ALL   = "MODE: SHOW ALL FAILURES"
 
 class Param:
 
@@ -601,8 +604,6 @@ class Param:
         def __init__(self):
             self.index: Optional[int] = None
             self.label_pattern: Optional[str] = None
-            self.is_raw: bool = False
-            self.display = False
             self.is_up_down = False
             self.diff_mode = DiffMode.FIRST
 
@@ -614,16 +615,8 @@ class Param:
             self.label_pattern = label_pattern
             return self
 
-        def set_raw(self, value: bool):
-            self.is_raw = value
-            return self
-
         def set_up_down(self, value: bool):
             self.is_up_down = value
-            return self
-
-        def set_display(self, value: bool):
-            self.display = value
             return self
 
         def set_diff_mode(self, value: DiffMode):
@@ -966,12 +959,17 @@ class Report:
         pass
 
     @staticmethod
+    def update_terminal_size():
+        term_width = shutil.get_terminal_size().columns
+        if term_width % 2 == 0:
+            term_width -= 1
+        Report.__term_width = term_width
+
+    @staticmethod
     def get_terminal_size():
         if Report.__term_width is None:
-            term_width = shutil.get_terminal_size()[0]
-            if term_width % 2 == 0:
-                term_width -= 1
-            Report.__term_width = term_width
+            Report.update_terminal_size()
+
         return Report.__term_width
 
     @staticmethod
@@ -1063,58 +1061,61 @@ class Report:
         return text
 
     @staticmethod
-    def side_by_side(text_a, text_b, sep=" "):
-        term_width = Report.get_terminal_size()
-        middle = int(term_width / 2)
-        ta = text_a.split("\n")
-        tb = text_b.split("\n")
-        size = max(len(ta), len(tb)) - 1
-        if len(text_b) > 0 and text_b[-1] != '\n':
-            size += 1
+    def side_by_side(ta: List[str], tb: List[str]):
+        cut = (Report.get_terminal_size() // 2) - 1
+        upper = max(len(ta), len(tb))
+        data = []
 
-        data = [list(" " * term_width) for _x in range(size)]
+        for i in range(upper):
+            a = ta[i] if i < len(ta) else "###############"
+            b = tb[i] if i < len(tb) else "###############"
+            if len(a) < cut:
+                a = a.ljust(cut)
+            data.append(a + " " + Symbol.vbar + " " + b)
 
-        for line in range(size):
-            if line < len(ta) and line < len(tb) and ta[line] == tb[line]:
-                data[line][middle] = Symbol.equalbar
-            else:
-                data[line][middle] = Symbol.unequal
-
-        for line in range(len(ta)):
-            for col in range(len(ta[line])):
-                if ta[line][col] != ' ' and col < middle - 1:
-                    data[line][col + 1] = ta[line][col]
-
-        for line in range(len(tb)):
-            for col in range(len(tb[line])):
-                if tb[line][col] != ' ' and col < middle - 1:
-                    data[line][col + middle + 2] = tb[line][col]
-
-        return "\n".join(["".join(line) for line in data])
+        return "\n".join(data)
 
     @staticmethod
-    def show_unit_list(user_list: Optional[List[str]], unit_list: List[Unit], is_raw: bool, is_up_down: bool) -> str:
+    def show_unit_list(user_list: Optional[List[str]], unit_list: List[Unit], is_up_down: bool) -> str:
         output = io.StringIO()
         _user_list = user_list if user_list is not None else [None] * len(unit_list)
         for user, unit in zip(_user_list, unit_list):
-            output.write(Report.__show_unit(user, unit, is_raw, is_up_down))
-        if is_raw or (user_list is None) or is_up_down:
+            output.write(Report.__show_unit(user, unit, is_up_down))
+        if (user_list is None) or is_up_down:
             output.write(Report.centralize(Symbol.hbar, Symbol.hbar) + "\n")
         else:
             output.write(Report.centralize("   ", Symbol.hbar, " ", " ") + "\n")
         return output.getvalue()
 
     @staticmethod
-    # return a tuple of two strings with the diff and the first two mismatch line rendered
-    def render_down_diff(a_text: str, b_text: str) -> Tuple[str, str]:
-        char_error = Symbol.unequal + " "
-        char_equal = Symbol.equalbar + " "
-
-        a_lines = a_text.splitlines()
-        b_lines = b_text.splitlines()
+    def first_failure_diff(a_text, b_text, first_failure) -> str:
+        get = lambda vet, i: vet[i] if i < len(vet) else ""
 
         a_render = Report.render_white(a_text, Color.YELLOW).splitlines()
         b_render = Report.render_white(b_text, Color.YELLOW).splitlines()
+
+        first_a = get(a_render, first_failure)
+        first_b = get(b_render, first_failure)
+        greater = max(Colored.len(first_a), Colored.len(first_b))
+        lbefore = ""
+
+        if first_failure > 0:
+            lbefore = Colored.remove_colors(get(a_render, first_failure - 1))
+            greater = max(greater, Colored.len(lbefore))
+        
+        postext = Report.centralize(Colored()(" First line mismatch showing withspaces ", Color.BOLD),  "-") + "\n";
+        if first_failure > 0:
+            postext += Colored()(Colored.ljust(lbefore, greater) + " (previous)", Color.BLUE) + "\n"
+        postext     += Colored.ljust(first_a, greater) + Colored()(" (expected)", Color.GREEN) + "\n"
+        postext     += Colored.ljust(first_b, greater) + Colored()(" (received)", Color.RED) + "\n"
+        return postext
+
+
+    @staticmethod
+    # return a tuple of two strings with the diff and the first two mismatch line rendered
+    def render_diff(a_text: str, b_text: str, pad: Optional[bool] = None) -> Tuple[List[str], List[str], int]:
+        a_lines = a_text.splitlines()
+        b_lines = b_text.splitlines()
 
         a_output = []
         b_output = []
@@ -1124,91 +1125,91 @@ class Report:
         
         first_failure = -1
 
+        cut: int = 0
+        if pad is True:
+            cut = (Report.get_terminal_size() // 2) - 1
+
         max_size = max(a_size, b_size)
         # lambda function to return element in index i or empty if out of bounds
-        get = lambda vet, i: vet[i] if i < len(vet) else ""
-        
+        def get(vet, i):
+            out = ""
+            if i < len(vet):
+                out = vet[i]
+            if pad is None:
+                return out
+            return out[:cut].ljust(cut)
+
+        # get = lambda vet, i: vet[i] if i < len(vet) else ""
+
         for i in range(max_size):
-            if i >= a_size or i >= b_size or a_render[i] != b_render[i]:
+            if i >= a_size or i >= b_size or a_lines[i] != b_lines[i]:
                 if first_failure == -1:
                     first_failure = i
-                a_output.append(char_error + get(a_lines, i))
-                b_output.append(char_error + get(b_lines, i))
+                a_output.append(Colored()(get(a_lines, i), Color.GREEN))
+                b_output.append(Colored()(get(b_lines, i), Color.RED))
             else:
-                a_output.append(char_equal + a_lines[i])
-                b_output.append(char_equal + b_lines[i])
+                a_output.append(get(a_lines, i))
+                b_output.append(get(b_lines, i))
 
-        if first_failure == -1:
-            return "\n".join(a_output), "\n".join(b_output)
+        return a_output, b_output, first_failure
 
-        first_a = get(a_render, first_failure)
-        first_b = get(b_render, first_failure)
-        greater = max(Colored.len(first_a), Colored.len(first_b))
-        lbefore = ""
-        if first_failure > 0:
-            lbefore = Colored.remove_colors(get(a_render, first_failure - 1))
-            greater = max(greater, Colored.len(lbefore))
-        print(greater)
-
-        postext = Report.centralize(Colored()("First line mismatch showing withspaces", Color.BOLD),  "-") + "\n";
-        if first_failure > 0:
-            postext += Colored()(Colored.ljust(lbefore, greater) + " (previous)", Color.BLUE) + "\n"
-        postext     += Colored.ljust(first_a, greater) + Colored()(" (expected)", Color.GREEN) + "\n"
-        postext     += Colored.ljust(first_b, greater) + Colored()(" (received)", Color.RED)
-
-        return "\n".join(a_output) + "\n", "\n".join(b_output) + "\n" + postext + "\n"
 
     @staticmethod
-    def __show_unit(user: Optional[str], unit: Unit, is_raw: bool = False, is_up_down: bool = False) -> str:
+    def __show_unit(user: str, unit: Unit, is_up_down: bool = False) -> str:
 
         def mount_side_by_side(left, right, filler=" ", middle=" "):
             half = int(Report.get_terminal_size() / 2)
             line = ""
-            a = " " + left.center(half - 2, filler) + " "
-            if len(a) > half:
+            a = " " + Colored.center(left, half - 2, filler) + " "
+            if Colored.len(a) > half:
                 a = a[:half]
             line += a
             line += middle
-            b = " " + right.center(half - 2, filler) + " "
-            if len(b) > half:
+            b = " " + Colored.center(right, half - 2, filler) + " "
+            if Colored.len(b) > half:
                 b = b[:half]
             line += b
             return line
 
         output = io.StringIO()
 
-        if is_up_down and not is_raw:
-            str_input = unit.input
-            str_output, str_user = Report.render_down_diff(unit.output, user)
-        else:
-            str_input = Report.render_white(unit.input) if not is_raw else unit.input
-            str_output = Report.render_white(unit.output) if not is_raw else unit.output
-            str_user = Report.render_white(user) if not is_raw else user
+        string_input = unit.input
+        string_expected = unit.output
+        string_received = user
+        expected_lines = []
+        received_lines = []
+        first_failure = -1
+
+        expected_lines, received_lines, first_failure = Report.render_diff(string_expected, string_received)
 
         title = " ".join(Report.format_header(user, unit).split(" ")[1:])
 
         dotted = "-"
         vertical_separator = Symbol.vbar
 
-        if is_up_down or (str_user is None):
+        if is_up_down:
+            expected_lines, received_lines, first_failure = Report.render_diff(string_expected, string_received)
             output.write(Report.centralize(Symbol.hbar, Symbol.hbar) + "\n")
             output.write(Report.centralize(title) + "\n")
-            output.write(Report.centralize("PROGRAM INPUT", dotted) + "\n")
-            output.write(str_input)
-            output.write(Report.centralize(Colored()("EXPECTED OUTPUT", Color.GREEN), dotted) + "\n")
-            output.write(str_output)
-            if str_user is not None:
-                output.write(Report.centralize(Colored()("RECEIVED OUTPUT", Color.RED), dotted) + "\n")
-                output.write(str_user)
-                if not str_user.endswith("\n"):
-                    output.write("\n")
+            output.write(Report.centralize(Colored()(" PROGRAM INPUT ", Color.BLUE), dotted) + "\n")
+            output.write(string_input)
+            output.write(Report.centralize(Colored()(" EXPECTED OUTPUT ", Color.GREEN), dotted) + "\n")
+            output.write("\n".join(expected_lines) + "\n")
+            output.write(Report.centralize(Colored()(" RECEIVED OUTPUT ", Color.RED), dotted) + "\n")
+            output.write("\n".join(received_lines) + "\n")
+            output.write(Report.first_failure_diff(string_expected, string_received, first_failure))
         else:
+            expected_lines, received_lines, first_failure = Report.render_diff(string_expected, string_received, True)
             output.write(Report.centralize("   ", Symbol.hbar, " ", " ") + "\n")
             output.write(mount_side_by_side(title, title, " ", vertical_separator) + "\n")
-            output.write(mount_side_by_side(" INPUT ", " INPUT ", dotted, vertical_separator) + "\n")
-            output.write(Report.side_by_side(str_input, str_input, vertical_separator) + "\n")
-            output.write(mount_side_by_side(" EXPECTED OUTPUT ", " RECEIVED OUTPUT ", dotted, vertical_separator) + "\n")
-            output.write(Report.side_by_side(str_output, str_user, vertical_separator) + "\n")
+            input_header = Colored()(" INPUT ", Color.BLUE)
+            output.write(mount_side_by_side(input_header, input_header, dotted) + "\n")
+            output.write(Report.side_by_side(string_input.splitlines(), string_input.splitlines()) + "\n")
+            expected_header = Colored()(" EXPECTED OUTPUT ", Color.GREEN)
+            received_header = Colored()(" RECEIVED OUTPUT ", Color.RED)
+            output.write(mount_side_by_side(expected_header, received_header , dotted, vertical_separator) + "\n")
+            output.write(Report.side_by_side(expected_lines, received_lines) + "\n")
+            output.write(Report.first_failure_diff(string_expected, string_received, first_failure))
 
         return output.getvalue()
 
@@ -1472,8 +1473,6 @@ class ActionExecute:
             grade = ActionExecute.calc_grade(wdir)
             print(Report.centralize("FINAL GRADE: " + str(grade)))
 
-
-
         return ActionExecute.calc_passed(wdir_list)
 
     @staticmethod
@@ -1519,12 +1518,10 @@ class ActionExecute:
                     new_user.append(user)
                     new_unit.append(unit)
             if param.diff_mode == DiffMode.FIRST:
-                output.write(Report.centralize("MODE: FIRST FAILURE ONLY") + "\n")
+                output.write(Report.centralize("FIRST FAILURE") + "\n")
                 new_user = [new_user[0]]
                 new_unit = [new_unit[0]]
-            else:
-                output.write(Report.centralize("MODE: ALL FAILURES") + "\n")
-            output.write(Report.show_unit_list(new_user, new_unit, param.is_raw, param.is_up_down))
+            output.write(Report.show_unit_list(new_user, new_unit, param.is_up_down))
         return output.getvalue()
 
     @staticmethod
@@ -1555,7 +1552,7 @@ class ActionList:
             if wdir.unit_list:
                 Logger.write(Report.format_header_list(None, wdir.unit_list, headers_filler) + '\n', relative=1)
             if param.display:
-                Logger.write(Report.show_unit_list(None, wdir.unit_list, param.is_raw, param.is_up_down), 0)
+                Logger.write(Report.show_unit_list(None, wdir.unit_list, param.is_up_down), 0)
         return [(wdir.folder, len(wdir.unit_list)) for wdir in wdir_list]
 
     @staticmethod
@@ -1630,10 +1627,7 @@ class Actions:
 
 class ITable:
     options_base = ["poo", "ed", "fup"]
-    options_term = ["40", "60", "80", "100", "120", "140", "160", "180", "200"]
     options_view = ["down", "side"]
-    options_mark = ["show", "hide"]
-    options_fail = ["first", "all"]
     options_exte = ["c", "cpp", "js", "ts", "py", "java"]
 
     @staticmethod
@@ -1691,22 +1685,17 @@ class ITable:
         return "exec" + " " + label
 
     @staticmethod
-    def action_evaluate(ui_list, mark_mode, view_mode, term_size, fail_mode, case_index) -> str:
+    def action_evaluate(ui_list, view_mode, case_index) -> str:
         label = "" if len(ui_list) < 2 else ui_list[1]
         label = ITable.choose_label(label)
         print("Running problem " + label + " ...")
         
-        Report.set_terminal_size(int(term_size))
-
-        param = Param.Basic().set_raw(mark_mode == "hide")
+        Report.update_terminal_size()
+        param = Param.Basic()
 
         if case_index != "-1":
             param.set_index(int(case_index))
 
-        if fail_mode == "first":
-            param.set_diff_mode(DiffMode.FIRST)
-        else:
-            param.set_diff_mode(DiffMode.ALL)
         if view_mode == "down":
             param.set_up_down(True)
 
@@ -1722,12 +1711,6 @@ class ITable:
         return ITable.choose("Choose database ", ITable.options_base)
 
     @staticmethod
-    def choose_term(ui_list: List[str]) -> str:
-        if len(ui_list) == 2 and ui_list[1] in ITable.options_term:
-            return ui_list[1]
-        return ITable.choose("Choose termsize ", ITable.options_term)
-
-    @staticmethod
     def choose_case(ui_list: List[str]) -> str:
         # lambda function to check if a string is a int
         is_int = lambda x: x.isdigit() or (x[0] == "-" and x[1:].isdigit())
@@ -1735,6 +1718,7 @@ class ITable:
         if len(ui_list) == 2 and is_int(ui_list[1]):
             return ui_list[1]
         print("Choose case index to evaluate or -1 for all: ", end="")
+
         try:
             return str(int(input()))
         except ValueError:
@@ -1745,10 +1729,7 @@ class ITable:
         config = configparser.ConfigParser()
         config["DEFAULT"] = {
             "base": ITable.options_base[0],
-            "term": ITable.options_term[0],
             "view": ITable.options_view[0],
-            "mark": ITable.options_mark[0],
-            "fail": ITable.options_fail[0],
             "case": "-1",
             "last": ""
         }
@@ -1756,17 +1737,7 @@ class ITable:
             config.write(f)
 
     @staticmethod
-    def not_str(value: str) -> str:
-        if value == ITable.options_mark[0]:
-            return ITable.options_mark[1]
-        if value == ITable.options_mark[1]:
-            return ITable.options_mark[0]
-        
-        if value == ITable.options_fail[0]:
-            return ITable.options_fail[1]
-        if value == ITable.options_fail[1]:
-            return ITable.options_fail[0]
-
+    def not_str(value: str) -> str:        
         if value == ITable.options_view[0]:
             return ITable.options_view[1]
         if value == ITable.options_view[1]:
@@ -1781,22 +1752,20 @@ class ITable:
 
 
         base = yellow(pad(config["DEFAULT"]["base"], 4).upper())
-        term = yellow(pad(config["DEFAULT"]["term"], 4))
         case =     config["DEFAULT"]["case"]
         if case == "-1":
             case = "ALL"
         case = yellow(pad(case, 4))
         view = yellow(pad(config["DEFAULT"]["view"], 4).upper())
-        mark = yellow(pad(config["DEFAULT"]["mark"], 4).upper())
-        fail = yellow(pad(config["DEFAULT"]["fail"], 4).upper())
         last = Colored()(config["DEFAULT"]["last"], Color.BLUE)
 
+        delta = " " * 4
         menu = ""
-        menu += ("╭────────────╮╭─── ? h.elp ────╮╭─────────────╮") + "\n"
-        menu += ("│ ⚙ b.ase:{}╰╮   ￬ d.own{}╭╯🗘 v.iew:{}  │".format(base, " " * 4, view)) + "\n"
-        menu += ("│ 🮛 t.erm:{} │   ▶ e.xec{}│ ↵ m.ark:{}  │".format(term, " " * 4, mark)) + "\n"
-        menu += ("│ 🅝 c.ase:{}╭╯   ✓ r.un{} ╰╮🯀 f.ail:{} │".format(case, " " * 4, fail)) + "\n"
-        menu += ("╰────────────╯╰─── ⏻ q.uit ────╯╰─────────────╯") + "\n"
+        menu += ("╭─────────────╮ ╭─── ? h.elp ───╮") + "\n"
+        menu += ("│ ⚙ b.ase:{}╰╮╰╮   ￬ d.own    ╰╮".format(base)) + "\n"
+        menu += ("│ 🗘 v.iew:{} │ │   ▶ e.xec     │".format(view)) + "\n"
+        menu += ("│ 🅝 c.ase:{}╭╯╭╯   ✓ r.un     ╭╯".format(case)) + "\n"
+        menu += ("╰─────────────╯ ╰─── ⏻ q.uit ───╯") + "\n"
         menu += "$ [" + last + "] "
 
 
@@ -1818,13 +1787,7 @@ class ITable:
             return False
         if "base" not in config["DEFAULT"] or config["DEFAULT"]["base"] not in ITable.options_base:
             return False
-        if "term" not in config["DEFAULT"] or config["DEFAULT"]["term"] not in ITable.options_term:
-            return False
         if "view" not in config["DEFAULT"] or config["DEFAULT"]["view"] not in ITable.options_view:
-            return False
-        if "mark" not in config["DEFAULT"] or config["DEFAULT"]["mark"] not in ITable.options_mark:
-            return False
-        if "fail" not in config["DEFAULT"] or config["DEFAULT"]["fail"] not in ITable.options_fail:
             return False
         if "case" not in config["DEFAULT"]:
             return False
@@ -1908,12 +1871,6 @@ class ITable:
             elif cmd == "v" or cmd == "view":
                 config["DEFAULT"]["view"] = ITable.not_str(config["DEFAULT"]["view"])
                 ITable.cls()
-            elif cmd == "m" or cmd == "mark":
-                config["DEFAULT"]["mark"] = ITable.not_str(config["DEFAULT"]["mark"])
-                ITable.cls()
-            elif cmd == "f" or cmd == "fail":
-                config["DEFAULT"]["fail"] = ITable.not_str(config["DEFAULT"]["fail"])
-                ITable.cls()
             elif cmd == "c" or cmd == "case":
                 config["DEFAULT"]["case"] = ITable.choose_case(ui_list)
                 ITable.cls()
@@ -1923,10 +1880,7 @@ class ITable:
                 last = ITable.action_exec(ui_list)
                 config["DEFAULT"]["last"] = last
             elif cmd == "r" or cmd == "run":
-                last = ITable.action_evaluate(ui_list, config["DEFAULT"]["mark"], 
-                                                       config["DEFAULT"]["view"], 
-                                                       config["DEFAULT"]["term"], 
-                                                       config["DEFAULT"]["fail"], 
+                last = ITable.action_evaluate(ui_list, config["DEFAULT"]["view"], 
                                                        config["DEFAULT"]["case"])
                 config["DEFAULT"]["last"] = last
             else:
@@ -2069,11 +2023,9 @@ class Main:
         if args.width is not None:
             Report.set_terminal_size(args.width)
         PatternLoader.pattern = args.pattern
-        param = Param.Basic().set_index(args.index).set_raw(args.raw)
+        param = Param.Basic().set_index(args.index)
         if args.vertical:
             param.set_up_down(True)
-        if args.all:
-            param.set_diff_mode(DiffMode.ALL)
         elif args.none:
             param.set_diff_mode(DiffMode.NONE)
         if Actions.execute(args.target_list, args.folders, param):
@@ -2086,7 +2038,7 @@ class Main:
         if args.width is not None:
             Report.set_terminal_size(args.width)
         PatternLoader.pattern = args.pattern
-        param = Param.Basic().set_index(args.index).set_raw(args.raw).set_display(args.display)
+        param = Param.Basic().set_index(args.index).set_display(args.display)
         Actions.list(args.target_list, args.folders, param)
         return 0
 
@@ -2127,7 +2079,6 @@ class Main:
     def main():
         parent_basic = argparse.ArgumentParser(add_help=False)
         parent_basic.add_argument('--width', '-w', type=int, help="term width")
-        parent_basic.add_argument('--raw', '-r', action='store_true', help="raw mode, disable  whitespaces rendering.")
         parent_basic.add_argument('--index', '-i', metavar="I", type=int, help='run a specific index.')
         parent_basic.add_argument('--pattern', '-p', metavar="P", type=str, default='@.in @.sol',
                                   help='pattern load/save a folder, default: "@.in @.sol"')
@@ -2146,7 +2097,7 @@ class Main:
         # list
         parser_l = subparsers.add_parser('list', parents=[parent_basic], help='show case packs or folders.')
         parser_l.add_argument('target_list', metavar='T', type=str, nargs='*', help='targets.')
-        parser_l.add_argument('--display', '-d', action="store_true", help='display full test description.')
+        # parser_l.add_argument('--display', '-d', action="store_true", help='display full test description.')
         parser_l.add_argument('--folders', '-f', metavar='T', type=str, nargs='+', help='folder list')
         parser_l.set_defaults(func=Main.list)
 
@@ -2161,7 +2112,6 @@ class Main:
         parser_r.add_argument('--folders', '-f', metavar='T', type=str, nargs='+', help='folder list')
         parser_r.add_argument('--vertical', '-v', action='store_true', help="use vertical mode.")
         parser_r.add_argument('--label', '-l', type=str, help="only use cases that match the label.")
-        parser_r.add_argument('--all', '-a', action='store_true', help="show all failures.")
         parser_r.add_argument('--none', '-n', action='store_true', help="show none failures.")
         parser_r.set_defaults(func=Main.execute)
 
