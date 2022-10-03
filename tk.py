@@ -956,9 +956,10 @@ class Report:
         if right_border is None:
             right_border = sep
         term_width = Report.get_terminal_size()
-        pad = sep if len(text) % 2 == 0 else ""
+        size = len(text)
+        pad = sep if size % 2 == 0 else ""
         tw = term_width - 2
-        filler = sep * int(tw / 2 - len(text) / 2)
+        filler = sep * int(tw / 2 - size / 2)
         return left_border + pad + filler + text + filler + right_border
 
     @staticmethod
@@ -1018,11 +1019,15 @@ class Report:
         return '\n'.join(out)
 
     @staticmethod
-    def render_white(text: Optional[str]) -> Optional[str]:
+    def render_white(text: Optional[str], color: Optional[str] = None) -> Optional[str]:
         if text is None:
             return None
-        text = text.replace(' ', Symbol.whitespace)
-        text = text.replace('\n', Symbol.newline + '\n')
+        if color is None:
+            text = text.replace(' ', Symbol.whitespace)
+            text = text.replace('\n', Symbol.newline + '\n')
+            return text
+        text = text.replace(' ', colored(Symbol.whitespace, color))
+        text = text.replace('\n', colored(Symbol.newline, color) + '\n')
         return text
 
     @staticmethod
@@ -1076,8 +1081,8 @@ class Report:
         a_lines = a_text.splitlines()
         b_lines = b_text.splitlines()
 
-        a_render = Report.render_white(a_text).splitlines()
-        b_render = Report.render_white(b_text).splitlines()
+        a_render = Report.render_white(a_text, Color.YELLOW).splitlines()
+        b_render = Report.render_white(b_text, Color.YELLOW).splitlines()
 
         a_output = []
         b_output = []
@@ -1108,10 +1113,9 @@ class Report:
         first_b = get(b_render, first_failure)
         greater = max(len(first_a), len(first_b))
 
-        postext = "--------------------------------------\n" +\
-                  "First line mismatch showing withspaces\n" +\
-                  first_a.ljust(greater) + " (expected)\n" +\
-                  first_b.ljust(greater) + " (received)"
+        postext = colored(Report.centralize("First line mismatch showing withspaces", "-"), Color.BOLD) + "\n" +\
+                  first_a.ljust(greater) + colored(" (expected)", Color.GREEN) + "\n" +\
+                  first_b.ljust(greater) + colored(" (received)", Color.RED)
 
         return "\n".join(a_output) + "\n", "\n".join(b_output) + "\n" + postext + "\n"
 
