@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# exec pip install termcolor in your system to enable colors
-
 from __future__ import annotations
 import math
 
@@ -16,6 +14,7 @@ import argparse
 import subprocess
 import tempfile
 import io
+import unicodedata
 import urllib.request
 import urllib.error
 import json
@@ -36,20 +35,52 @@ class Unit:
         self.index = 0
         self.duplicated: Optional[int] = None
 
-class Color:
-    PINK    = '\033[95m'
-    BLUE    = '\u001b[34m'
-    MAGENTA = '\u001b[35m'
-    CYAN    = '\u001b[36m'
-    GREEN   = '\u001b[32m'
-    YELLOW  = '\u001b[33m'
-    RED     = '\u001b[31m'
-    RESET   = '\u001b[0m'
-    BOLD    = '\033[1m'
-    ULINE   = '\033[4m'
 
-def colored(text: str, color: str) -> str:
-    return color + text + Color.RESET
+class Color(Enum):
+    RED = 1
+    GREEN = 2
+    YELLOW = 3
+    BLUE = 4
+    MAGENTA = 5
+    CYAN = 6
+    WHITE = 7
+    RESET = 8
+    BOLD = 9
+    ULINE = 10
+
+
+class Colored:
+    __map = {
+        Color.RED     : '\u001b[31m',
+        Color.GREEN   : '\u001b[32m',
+        Color.YELLOW  : '\u001b[33m',
+        Color.BLUE    : '\u001b[34m',
+        Color.MAGENTA : '\u001b[35m',
+        Color.CYAN    : '\u001b[36m',
+        Color.WHITE   : '\u001b[37m',
+        Color.RESET   : '\u001b[0m',
+        Color.BOLD    : '\u001b[1m',
+        Color.ULINE   : '\u001b[4m'
+    }
+
+    @staticmethod
+    def __call__(text: str, color: Color, color2: Optional[Color] = None) -> str:
+        return Colored.__map[color] + ("" if color2 is None else Colored.__map[color2]) + text + Colored.__map[Color.RESET]
+
+    @staticmethod
+    def ljust(text: str, width: int) -> str:
+        return text + ' ' * (width - Colored.len(text))
+
+    @staticmethod
+    def remove_colors(text: str) -> str:
+        for color in Colored.__map.values():
+            text = text.replace(color, '')
+        return text
+
+    @staticmethod
+    def len(text):
+        return len(Colored.remove_colors(text))
+
 
 class Symbol:
     opening = "=>"
@@ -82,17 +113,17 @@ class Symbol:
         Symbol.equalbar = "|" if asc2only else "│"
 
 
-        Symbol.opening     = colored(Symbol.opening, Color.BLUE)
-        Symbol.neutral     = colored(Symbol.neutral, Color.BLUE)
+        Symbol.opening     = Colored()(Symbol.opening, Color.BLUE)
+        Symbol.neutral     = Colored()(Symbol.neutral, Color.BLUE)
 
-        Symbol.success     = colored(Symbol.success, Color.GREEN)
-        Symbol.failure     = colored(Symbol.failure, Color.RED)
+        Symbol.success     = Colored()(Symbol.success, Color.GREEN)
+        Symbol.failure     = Colored()(Symbol.failure, Color.RED)
         
-        Symbol.wrong       = colored(Symbol.wrong,       Color.YELLOW)
-        Symbol.compilation = colored(Symbol.compilation, Color.YELLOW)
-        Symbol.execution   = colored(Symbol.execution,   Color.YELLOW)
-        Symbol.unequal     = colored(Symbol.unequal,     Color.RED)
-        Symbol.equalbar    = colored(Symbol.equalbar,    Color.GREEN)
+        Symbol.wrong       = Colored()(Symbol.wrong,       Color.YELLOW)
+        Symbol.compilation = Colored()(Symbol.compilation, Color.YELLOW)
+        Symbol.execution   = Colored()(Symbol.execution,   Color.YELLOW)
+        Symbol.unequal     = Colored()(Symbol.unequal,     Color.RED)
+        Symbol.equalbar    = Colored()(Symbol.equalbar,    Color.GREEN)
 
 Symbol.initialize(asc2only)  # inicalizacao estatica
 
@@ -956,7 +987,8 @@ class Report:
         if right_border is None:
             right_border = sep
         term_width = Report.get_terminal_size()
-        size = len(text)
+
+        size = Colored.len(text)
         pad = sep if size % 2 == 0 else ""
         tw = term_width - 2
         filler = sep * int(tw / 2 - size / 2)
@@ -1019,15 +1051,15 @@ class Report:
         return '\n'.join(out)
 
     @staticmethod
-    def render_white(text: Optional[str], color: Optional[str] = None) -> Optional[str]:
+    def render_white(text: Optional[str], color: Optional[Color] = None) -> Optional[str]:
         if text is None:
             return None
         if color is None:
             text = text.replace(' ', Symbol.whitespace)
             text = text.replace('\n', Symbol.newline + '\n')
             return text
-        text = text.replace(' ', colored(Symbol.whitespace, color))
-        text = text.replace('\n', colored(Symbol.newline, color) + '\n')
+        text = text.replace(' ', Colored()(Symbol.whitespace, color))
+        text = text.replace('\n', Colored()(Symbol.newline, color) + '\n')
         return text
 
     @staticmethod
@@ -1111,11 +1143,18 @@ class Report:
 
         first_a = get(a_render, first_failure)
         first_b = get(b_render, first_failure)
-        greater = max(len(first_a), len(first_b))
+        greater = max(Colored.len(first_a), Colored.len(first_b))
+        lbefore = ""
+        if first_failure > 0:
+            lbefore = Colored.remove_colors(get(a_render, first_failure - 1))
+            greater = max(greater, Colored.len(lbefore))
+        print(greater)
 
-        postext = colored(Report.centralize("First line mismatch showing withspaces", "-"), Color.BOLD) + "\n" +\
-                  first_a.ljust(greater) + colored(" (expected)", Color.GREEN) + "\n" +\
-                  first_b.ljust(greater) + colored(" (received)", Color.RED)
+        postext = Report.centralize(Colored()("First line mismatch showing withspaces", Color.BOLD),  "-") + "\n";
+        if first_failure > 0:
+            postext += Colored()(Colored.ljust(lbefore, greater) + " (previous)", Color.BLUE) + "\n"
+        postext     += Colored.ljust(first_a, greater) + Colored()(" (expected)", Color.GREEN) + "\n"
+        postext     += Colored.ljust(first_b, greater) + Colored()(" (received)", Color.RED)
 
         return "\n".join(a_output) + "\n", "\n".join(b_output) + "\n" + postext + "\n"
 
@@ -1156,10 +1195,10 @@ class Report:
             output.write(Report.centralize(title) + "\n")
             output.write(Report.centralize("PROGRAM INPUT", dotted) + "\n")
             output.write(str_input)
-            output.write(Report.centralize("EXPECTED OUTPUT", dotted) + "\n")
+            output.write(Report.centralize(Colored()("EXPECTED OUTPUT", Color.GREEN), dotted) + "\n")
             output.write(str_output)
             if str_user is not None:
-                output.write(Report.centralize("USER OUTPUT", dotted) + "\n")
+                output.write(Report.centralize(Colored()("RECEIVED OUTPUT", Color.RED), dotted) + "\n")
                 output.write(str_user)
                 if not str_user.endswith("\n"):
                     output.write("\n")
@@ -1168,7 +1207,7 @@ class Report:
             output.write(mount_side_by_side(title, title, " ", vertical_separator) + "\n")
             output.write(mount_side_by_side(" INPUT ", " INPUT ", dotted, vertical_separator) + "\n")
             output.write(Report.side_by_side(str_input, str_input, vertical_separator) + "\n")
-            output.write(mount_side_by_side(" EXPECTED OUTPUT ", " USER OUTPUT ", dotted, vertical_separator) + "\n")
+            output.write(mount_side_by_side(" EXPECTED OUTPUT ", " RECEIVED OUTPUT ", dotted, vertical_separator) + "\n")
             output.write(Report.side_by_side(str_output, str_user, vertical_separator) + "\n")
 
         return output.getvalue()
@@ -1738,7 +1777,7 @@ class ITable:
         def pad(s, w):
             return s + " " * (w - len(s))
         def yellow(s):
-            return colored(s, Color.YELLOW)
+            return Colored()(s, Color.YELLOW)
 
 
         base = yellow(pad(config["DEFAULT"]["base"], 4).upper())
@@ -1750,7 +1789,7 @@ class ITable:
         view = yellow(pad(config["DEFAULT"]["view"], 4).upper())
         mark = yellow(pad(config["DEFAULT"]["mark"], 4).upper())
         fail = yellow(pad(config["DEFAULT"]["fail"], 4).upper())
-        last = colored(config["DEFAULT"]["last"], Color.BLUE)
+        last = Colored()(config["DEFAULT"]["last"], Color.BLUE)
 
         menu = ""
         menu += ("╭────────────╮╭─── ? h.elp ────╮╭─────────────╮") + "\n"
@@ -1764,7 +1803,7 @@ class ITable:
         output = io.StringIO()
         for i in range(0, len(menu) - 1):
             if menu[i + 1] == ".":
-                output.write(colored(menu[i], Color.RED))
+                output.write(Colored()(menu[i], Color.RED))
             else:
                 output.write(menu[i])
         output.write(menu[-1])
