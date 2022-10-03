@@ -1900,7 +1900,7 @@ class Down:
 
     @staticmethod
     def entry_args(args):
-        Main.entry_unpack(args.disc, args.index, args.extension)
+        Down.entry_unpack(args.disc, args.index, args.extension)
 
     @staticmethod
     def create_file(content, path, label=""):

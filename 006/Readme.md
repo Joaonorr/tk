@@ -1,6 +1,6 @@
 ## @006 Tamagotchi & Utilizando sets para controlar a variação dos status do bichinho
 
-![](https:/raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/cover.jpg)
+![](https://raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/cover.jpg)
 
 [](toc)
 
@@ -36,11 +36,11 @@ Seu sistema deverá:
 
 ***
 ## Guide
-![](https:/raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/diagrama.png)
+![](https://raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/diagrama.png)
 
-- [solver.cpp ](https:/raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/.cache/draft.cpp)
-- [solver.java](https:/raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/.cache/draft.java), [Shell.java](https:/raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/./java/Shell.java)
-- [solver.ts  ](https:/raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/.cache/draft.ts), [shell.ts](https:/raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/./ts/shell.ts)
+- [solver.cpp ](https://raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/.cache/draft.cpp)
+- [solver.java](https://raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/.cache/draft.java), [Shell.java](https://raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/./java/Shell.java)
+- [solver.ts  ](https://raw.githubusercontent.com/qxcodepoo/arcade/master/base/006/.cache/draft.ts)
 
 ***
 ## Shell
