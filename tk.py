@@ -1798,13 +1798,10 @@ class ITable:
     @staticmethod
     def print_help():
         print("Digite a letra ou o comando e aperte enter.")
-        print("b ou base: define a base de dados entre as disciplinas.")
-        print("t ou term: define a largura do terminal utilizado para mostrar os erros.")
-        print("c ou case: define o index do caso de teste a ser executado ou -1 para todos.")
         print("")
+        print("b ou base: define a base de dados entre as disciplinas fup, ed e poo.")
         print("v ou view: alterna entre mostrar a visualização de erros up_down ou side_by_site.")
-        print("f ou fail: alterna entre mostrar apenas o primeiro caso que falhar ou todos.")
-        print("m ou mark: alterna entre mostrar os whitespaces e escondê-los.")
+        print("c ou case: define o index do caso de teste a ser executado ou -1 para todos.")
         print("")
         print("d ou down: faz o download do problema utilizando o label e a extensão.")
         print("e ou exec: roda o problema esperando a entrada do usuário.")
