@@ -926,11 +926,15 @@ class Execution:
         for _i in range(len(unit_list)):
             solver.user.append(None)
         for i in range(len(unit_list)):
-            solver.user[i] = Execution.__execute_single_case(solver.executable, unit_list[i].input)
-            if solver.user[i] == unit_list[i].output:
-                Logger.write(Symbol.success)
-            else:
-                Logger.write(Symbol.failure)
+            try:
+                solver.user[i] = Execution.__execute_single_case(solver.executable, unit_list[i].input)
+                if solver.user[i] == unit_list[i].output:
+                    Logger.write(Symbol.success)
+                else:
+                    Logger.write(Symbol.failure)
+            except Runner.ExecutionError as e:
+                Logger.write(Symbol.execution)
+                solver.user[i] = str(e)
 
     @staticmethod
     def __check_all_answers_right(solver: Solver, unit_list: List[Unit]) -> bool:
@@ -1551,8 +1555,6 @@ class ActionList:
             ActionExecute.print_solvers(wdir, sizes[3], True)
             if wdir.unit_list:
                 Logger.write(Report.format_header_list(None, wdir.unit_list, headers_filler) + '\n', relative=1)
-            if param.display:
-                Logger.write(Report.show_unit_list(None, wdir.unit_list, param.is_up_down), 0)
         return [(wdir.folder, len(wdir.unit_list)) for wdir in wdir_list]
 
     @staticmethod
@@ -2035,7 +2037,7 @@ class Main:
         if args.width is not None:
             Report.set_terminal_size(args.width)
         PatternLoader.pattern = args.pattern
-        param = Param.Basic().set_index(args.index).set_display(args.display)
+        param = Param.Basic().set_index(args.index)
         Actions.list(args.target_list, args.folders, param)
         return 0
 
