@@ -1,8 +1,8 @@
 >>>>>>>> inicializar
-show 1 2
+show
 end
 ========
-$show 1 2
+$show
 pass: 0, gas: 0, km: 0
 $end
 <<<<<<<<

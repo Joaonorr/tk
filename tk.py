@@ -1680,17 +1680,31 @@ class ITable:
         return "down" + " " + label + " " + ext
 
     @staticmethod
+    def match_folder(hook) -> Optional[str]:
+        folders = [ f for f in os.listdir() if os.path.isdir(f) ]
+        for f in folders:
+            if hook in f:
+                return f
+        return None
+
+    @staticmethod
     def action_exec(ui_list):
         label = "" if len(ui_list) < 2 else ui_list[1]
         label = ITable.choose_label(label)
-        Actions.run(label)
+        folder = ITable.match_folder(label)
+        Actions.run(folder)
         return "exec" + " " + label
 
     @staticmethod
     def action_evaluate(ui_list, view_mode, case_index) -> str:
         label = "" if len(ui_list) < 2 else ui_list[1]
         label = ITable.choose_label(label)
-        print("Running problem " + label + " ...")
+        folder = ITable.match_folder(label)
+        if folder is None:
+            print("Problem", label, "not found, download it first")
+            return "run " + label
+
+        print("Running problem " + folder + " ...")
         
         Report.update_terminal_size()
         param = Param.Basic()
@@ -1701,7 +1715,7 @@ class ITable:
         if view_mode == "down":
             param.set_up_down(True)
 
-        Actions.execute([], [label], param)
+        Actions.execute([], [folder], param)
 
         return "run " + label
 
