@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name = 'testkit',
-    version = '1.0.0',
+    version = '1.0.3',
     author = "David Sena Oliveira",
     author_email = "sena@ufc.br",
     package = ['testkit'],

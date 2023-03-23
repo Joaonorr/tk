@@ -35,10 +35,10 @@ def windowsInstall():
     os.environ["PATH"] += os.pathsep + new_path
     print("DONE")
 
-if __name__ == '__main__':
-    if platform.system() == 'Linux':
-        linuxInstall()
-    elif platform.system() == 'Windows':
-        windowsInstall()
-    else:
-        print("Este script só pode ser executado em sistemas Linux ou Windows!")
+
+if platform.system() == 'Linux':
+    linuxInstall()
+elif platform.system() == 'Windows':
+    windowsInstall()
+else:
+    print("Este script só pode ser executado em sistemas Linux ou Windows!")
