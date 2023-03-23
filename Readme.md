@@ -30,7 +30,7 @@
 
 Se for assistir, use o modo velocidade x2 do Youtube porque eu falo devagar. :)
 
-[![](tutorial/img.png)](https://www.youtube.com/watch?v=nt4dDLzGubA&t)
+[![](tk/tutorial/img.png)](https://www.youtube.com/watch?v=nt4dDLzGubA&t)
 
 
 ## Instalação
