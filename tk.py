@@ -200,7 +200,7 @@ class Solver:
         elif path.endswith(".py"):
             self.executable = "python " + path
         elif path.endswith(".js"):
-            self.executable = "node " + path
+            self.__prepare_js()
         elif path.endswith(".ts"):
             self.__prepare_ts()
         elif path.endswith(".java"):
@@ -238,8 +238,23 @@ class Solver:
         solver = solver.split(os.sep)[-1]  # getting only the filename
         self.executable =  "java -cp " + tempdir +  " "  + filename[:-5]  # removing the .java
 
-    def __prepare_ts(self):
+    def __prepare_js(self):
+        import_str = r'let __lines = require("fs").readFileSync(0).toString().split("\n"); let input = () => __lines.length === 0 ? "" : __lines.shift(); let write = (text, end="\n") => process.stdout.write("" + text + end);'
         solver = self.path_list[0]
+        with open(solver, "r") as f:
+            content = f.read()
+        with open(solver, "w") as f:
+            f.write(content.replace("let input,write", import_str))
+        self.executable = "node " + solver
+
+    def __prepare_ts(self):
+        import_str = r'let _cin_: string[] = require("fs").readFileSync(0).toString().split("\n"); let input = () : string => _cin_.length === 0 ? "" : _cin_.shift()!; let write = (text: any, end:string="\n")=> process.stdout.write("" + text + end);'
+        solver = self.path_list[0]
+        with open(solver, "r") as f:
+            content = f.read()
+        with open(solver, "w") as f:
+            f.write(content.replace("let input,write", import_str))
+        
         filename = os.path.basename(solver)
         source_list = self.path_list
         # print("Using the following source files: " + str([os.path.basename(x) for x in source_list]))
@@ -252,22 +267,7 @@ class Solver:
         jsfile = os.path.join(self.temp_dir, filename[:-3] + ".js")
         self.executable = "node " + jsfile  # renaming solver to main
 
-    # @staticmethod
-    # def __prepare_hs(solver: str) -> str:
-    #     solver_files = Solver.__prepare_multiple_files(solver)
-    #     source_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.hs"])
-    #     exec_path = os.sep.join(solver_files[0].split(os.sep)[:-1] + [".a.out"])
-    #     with open(source_path, "w") as f:
-    #         for solver in solver_files:
-    #             f.write(open(solver).read() + "\n")
 
-    #     cmd = ["ghc", "--make", source_path, "-o", exec_path]
-    #     return_code, stdout, stderr = Runner.subprocess_run(cmd)
-    #     print(stdout)
-    #     print(stderr)
-    #     if return_code != 0:
-    #         raise Runner.CompileError(stdout + stderr)
-    #     return exec_path
 
     def __prepare_c_cpp(self, pre_args: List[str], pos_args: list[str]) -> str:
         solver = self.path_list[0]
@@ -1656,7 +1656,7 @@ class GuiActions:
         cmd += config.solvers
         if config.case != -1:
             cmd += ["-i", str(config.case)]
-        if config.view == "side":
+        if config.view == "down":
             cmd += ["-v"]
         print(Colored.green("$ " + " ".join(cmd)))
         os.chdir(config.folder)
@@ -1738,7 +1738,7 @@ class GuiActions:
 
     @staticmethod
     def load_folder(ui_list, config):
-        folders = ["/"] + [f for f in os.listdir() if os.path.isdir(f)]
+        folders = ["/"] + [f for f in os.listdir() if os.path.isdir(f) and not f.startswith(".")]
         if len(folders) == 0:
             print("Não há pastas para serem carregadas")
         else:        
