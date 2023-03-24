@@ -177,7 +177,17 @@ class Solver:
         self.temp_dir = tempfile.mkdtemp()
         # print("Tempdir for execution: " + self.temp_dir)
         # copia para tempdir e atualiza os paths
-        self.path_list = [shutil.copy(path, self.temp_dir) for path in self.path_list if os.path.isfile(path)]
+
+        new_paths = []
+        for path in self.path_list:
+            if os.path.isfile(path):
+                new_paths.append(shutil.copy(path, self.temp_dir))
+            else:
+                print("File not found: " + path)
+                exit(1)
+                
+        self.path_list = new_paths
+        
         self.error_msg: str = ""
         self.executable: str = ""
         self.prepare_exec()
