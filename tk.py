@@ -1260,6 +1260,7 @@ class Actions:
             unit.result = Execution.run_unit(wdir.solver, unit)
             print(unit.result.value + " ", end="")
             if unit.result == ExecutionResult.EXECUTION_ERROR:
+                print(unit.user)
                 break
         print("]\n")
 
