@@ -1726,14 +1726,15 @@ class GuiActions:
         for ext in Choose.extensions:
             solvers += [f for f in files if f.endswith("." + ext)]
         output = []
+        pre = config.folder + os.sep
         for f in folders:
-            output.append(Colored.blue(f))
+            output.append(pre + Colored.blue(f))
         for f in readme:
-            output.append(Colored.red(f))
+            output.append(pre + Colored.red(f))
         for f in tests:
-            output.append(Colored.yellow(f))
+            output.append(pre + Colored.yellow(f))
         for f in solvers:
-            output.append(Colored.green(f))
+            output.append(pre + Colored.green(f))
         print("  ".join(output))
 
 
