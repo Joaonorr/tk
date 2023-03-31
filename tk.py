@@ -1720,22 +1720,26 @@ class GuiActions:
             return
         files = os.listdir(config.folder)
         folders = [f for f in files if os.path.isdir(os.path.join(config.folder, f))]
-        readme = [f for f in files if f == "Readme.md"]
+        files = [f for f in files if not f in folders]
+        readme = [f for f in files if f.endswith(".md")]
+        files = [f for f in files if not f in readme]
         tests = [f for f in files if f.endswith(".tio") or f.endswith(".vpl")]
+        files = [f for f in files if not f in tests]
         solvers = []
         for ext in Choose.extensions:
             solvers += [f for f in files if f.endswith("." + ext)]
+        files = [f for f in files if not f in solvers]
         output = []
         pre = config.folder + os.sep
-        for f in folders:
-            output.append(pre + Colored.blue(f))
-        for f in readme:
-            output.append(pre + Colored.red(f))
-        for f in tests:
-            output.append(pre + Colored.yellow(f))
-        for f in solvers:
-            output.append(pre + Colored.green(f))
-        print("  ".join(output))
+        output.append("  ".join(pre + Colored.blue(f) for f in folders))
+        output.append("  ".join(pre + Colored.red(f) for f in readme))
+        output.append("  ".join(pre + Colored.yellow(f) for f in tests))
+        output.append("  ".join(pre + Colored.green(f) for f in solvers))
+        output.append("  ".join(pre + Colored.magenta(f) for f in files))
+
+        output = [o for o in output if len(o) > 0]
+
+        print("\n".join(output))
 
 
     @staticmethod
