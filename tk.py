@@ -1554,12 +1554,12 @@ class Config:
         parser = configparser.ConfigParser()
 
         self.config_file = self.search_config()
-        if self.config_file != "":
-            print("Loading config file: " + self.config_file)
-        else:
+        if self.config_file == "":
             self.config_file = os.path.join(os.getcwd(), Config.default_config_file)
             print("Creating default config file")
             self.create_default_config()
+        # else:
+        #     print("Loading config file: " + self.config_file)
         
         self.root = os.path.dirname(self.config_file)
         os.chdir(self.root)
