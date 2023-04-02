@@ -1,0 +1,10 @@
+LICENSE.txt
+setup.cfg
+setup.py
+kitest.egg-info/PKG-INFO
+kitest.egg-info/SOURCES.txt
+kitest.egg-info/dependency_links.txt
+kitest.egg-info/top_level.txt
+tk/__init__.py
+tk/install.py
+tk/tk.py

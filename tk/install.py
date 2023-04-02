@@ -15,7 +15,7 @@ def export_path():
     new_path = os.path.join(os.path.expanduser('~'), 'bin')
     if not os.path.exists(new_path):
         os.makedirs(new_path)
-    with open(file_path, 'a') as f:
+    with open(file_path, 'r+') as f:
         path_line = 'export PATH="$HOME/bin:$PATH"\n'
         if path_line not in f.read():
             print("Inserting ~/bin in path!")

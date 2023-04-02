@@ -1,11 +1,11 @@
 from setuptools import setup
 
 setup(
-    name = 'testkit',
-    version = '1.0.3',
+    name = 'kitest',
+    version = '1.0.1',
     author = "David Sena Oliveira",
     author_email = "sena@ufc.br",
-    package = ['testkit'],
+    package = ['kitest'],
     description = "",
     long_description = "",
     url = "https://github.com/senapk/tk",

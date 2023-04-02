@@ -1,8 +1,0 @@
-LICENSE.txt
-setup.cfg
-setup.py
-testkit.egg-info/PKG-INFO
-testkit.egg-info/SOURCES.txt
-testkit.egg-info/dependency_links.txt
-testkit.egg-info/top_level.txt
-tk/tk.py
