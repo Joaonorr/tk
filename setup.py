@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name = 'kitest',
-    version = '1.0.1',
+    version = '1.0.3',
     author = "David Sena Oliveira",
     author_email = "sena@ufc.br",
     package = ['kitest'],
