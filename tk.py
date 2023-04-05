@@ -803,6 +803,7 @@ class Execution:
         return_code, stdout, stderr = Runner.subprocess_run(cmd, unit.input)
         unit.user = stdout + stderr
         if return_code != 0:
+            unit.user += Symbol.execution
             return ExecutionResult.EXECUTION_ERROR
         if unit.user == unit.output:
             return ExecutionResult.SUCCESS
@@ -1259,9 +1260,6 @@ class Actions:
         for unit in wdir.unit_list:
             unit.result = Execution.run_unit(wdir.solver, unit)
             print(unit.result.value + " ", end="")
-            if unit.result == ExecutionResult.EXECUTION_ERROR:
-                print(unit.user)
-                break
         print("]\n")
 
         if param.diff_mode != DiffMode.QUIET:        
@@ -1269,8 +1267,7 @@ class Actions:
             if (ExecutionResult.EXECUTION_ERROR in results) or (ExecutionResult.WRONG_OUTPUT in results):
                 print(wdir.unit_list_resume())
 
-            if ExecutionResult.WRONG_OUTPUT in results:
-                wrong = [unit for unit in wdir.unit_list if unit.result == ExecutionResult.WRONG_OUTPUT][0]
+                wrong = [unit for unit in wdir.unit_list if unit.result != ExecutionResult.SUCCESS][0]
                 if param.is_up_down:
                     print(Diff.mount_up_down_diff(wrong))
                 else:
