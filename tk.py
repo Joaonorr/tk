@@ -1310,12 +1310,7 @@ class Down:
 
         for entry in loaded["required"]:
             path = os.path.join(index, entry["name"])
-            if os.path.exists(path):
-                print("File already exists: " + path + ". Replace? (y/n):", end="")
-                line = input()
-                if line.lower() != "y":
-                    return
-            Main.create_file(entry["contents"], path, "(Required)")
+            Down.compare_and_save(entry["contents"], path)
 
 
     @staticmethod
@@ -1409,7 +1404,7 @@ class Down:
 class Choose:
     base = ["poo", "ed", "fup"]
     view = ["down", "side"]
-    extensions  = ["c", "cpp", "js", "ts", "py", "java"]
+    extensions  = ["c", "cpp", "js", "ts", "py", "java", "h", "hpp"]
 
     def validate(ui: List[str], data_list: List[str]) -> Optional[str]:
         if len(ui) == 2:
