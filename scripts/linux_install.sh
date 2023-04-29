@@ -24,6 +24,8 @@ fi
 
 # Set the URL and destination file path
 url="https://raw.githubusercontent.com/senapk/tk/master/tk.py"
+update_url="https://raw.githubusercontent.com/senapk/tk/master/scripts/linux_install.sh"
+update_path="$HOME/.tk/updatetk.sh"
 dest_path="$HOME/.tk/tk"
 
 # Create the destination directory if it doesn't exist
@@ -31,6 +33,8 @@ mkdir -p "$HOME/.tk"
 
 # Download the file and save it to the destination path
 curl -o "$dest_path" "$url"
+curl -o "$update_path" "$update_url"
 
 # Make the file executable
 chmod +x "$dest_path"
+chmod +x "$update_path"
