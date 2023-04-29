@@ -40,5 +40,4 @@ chmod +x "$update_path"
 
 echo "Reloading bash"
 
-echo "type tk -h to get started"
-bash
+source ~/.bashrc
