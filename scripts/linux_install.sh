@@ -3,13 +3,12 @@
 function add_folder_to_path() {
     local rc_file=$1
     local folder_path=$2
-    local grep_result=$(grep -q -E "(^|:)$folder_path($|:)" "$rc_file" 2>/dev/null)
 
-    if [[ -z "$grep_result" ]]; then
-        echo "Adding $folder_path to $rc_file"
-        echo "export PATH=\$PATH:$folder_path" >> "$rc_file"
-    else
+    if grep -q "PATH=\$PATH:$folder_path" "$rc_file"; then
         echo "Folder $folder_path already exists in $rc_file"
+    else
+        echo "Adding $folder_path to $rc_file"
+        printf "\nexport PATH=\$PATH:$folder_path" >> "$rc_file"
     fi
 }
 
@@ -39,5 +38,7 @@ curl -o "$update_path" "$update_url"
 chmod +x "$dest_path"
 chmod +x "$update_path"
 
-echo "Close and reopen your terminal to start using tk"
-echo "Feche e abra o terminal para começar a usar o tk"
+echo "Reloading bash"
+
+echo "type tk -h to get started"
+bash
