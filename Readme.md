@@ -30,11 +30,19 @@
 
 Se for assistir, use o modo velocidade x2 do Youtube porque eu falo devagar. :)
 
-[![](tutorial/img.png)](https://www.youtube.com/watch?v=nt4dDLzGubA&t)
-
+[![_](tutorial/img.png)](https://www.youtube.com/watch?v=nt4dDLzGubA&t)
 
 ## Instalação
+
 - Baixe o [tk.py](tk.py) e coloque em algum lugar do seu PATH
+
+- No linux, ou usando o WSL, você pode rodar o seguinte comando para instalar:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/senapk/tk/master/scripts/linux_install.sh | bash
+```
+
+
 
 ## O que é um teste?
 - Um teste define qual o comportamento esperado de um programa determinístico. Para uma determinada entrada, o programa deve gerar **sempre** a mesma saída.
