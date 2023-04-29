@@ -38,8 +38,10 @@ curl -o "$update_path" "$update_url"
 chmod +x "$dest_path"
 chmod +x "$update_path"
 
-echo ""
-echo "Close and reopen your terminal to start using tk"
-echo "Feche e abra o terminal para começar a usar o tk"
-echo "tk --help"
+echo "Se é a primeira vez que você está instalando o tk"
+echo "você precisa reiniciar o terminal para começar a usar."
+echo "Para atualizar o tk, basta executar o comando:"
+echo "$updatetk.sh"
+
+
 
