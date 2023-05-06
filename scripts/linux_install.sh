@@ -41,7 +41,7 @@ chmod +x "$update_path"
 echo "Se é a primeira vez que você está instalando o tk"
 echo "você precisa reiniciar o terminal para começar a usar."
 echo "Para atualizar o tk, basta executar o comando:"
-echo "$updatetk.sh"
+echo "updatetk.sh"
 
 
 
