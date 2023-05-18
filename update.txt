@@ -1,0 +1,1 @@
+2023-04-05 Erros de execução geram diff e mostram o ϵ no momento do erro

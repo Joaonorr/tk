@@ -290,7 +290,7 @@ class Solver:
 
     def __prepare_cpp(self: str):
         # pre = ["g++", "-std=c++20", "-Wall", "-g", "-fsanitize=address", "-fsanitize=undefined", "-D_GLIBCXX_DEBUG"] # muito lento no replit
-        pre = ["g++", "-std=c++20", "-Wall", "-Wextra"]
+        pre = ["g++", "-std=c++17", "-Wall", "-Wextra", "-Werror"]
         pos = []
         self.__prepare_c_cpp(pre, pos)
 
@@ -803,6 +803,7 @@ class Execution:
         return_code, stdout, stderr = Runner.subprocess_run(cmd, unit.input)
         unit.user = stdout + stderr
         if return_code != 0:
+            unit.user += Symbol.execution
             return ExecutionResult.EXECUTION_ERROR
         if unit.user == unit.output:
             return ExecutionResult.SUCCESS
@@ -1259,9 +1260,6 @@ class Actions:
         for unit in wdir.unit_list:
             unit.result = Execution.run_unit(wdir.solver, unit)
             print(unit.result.value + " ", end="")
-            if unit.result == ExecutionResult.EXECUTION_ERROR:
-                print(unit.user)
-                break
         print("]\n")
 
         if param.diff_mode != DiffMode.QUIET:        
@@ -1269,8 +1267,7 @@ class Actions:
             if (ExecutionResult.EXECUTION_ERROR in results) or (ExecutionResult.WRONG_OUTPUT in results):
                 print(wdir.unit_list_resume())
 
-            if ExecutionResult.WRONG_OUTPUT in results:
-                wrong = [unit for unit in wdir.unit_list if unit.result == ExecutionResult.WRONG_OUTPUT][0]
+                wrong = [unit for unit in wdir.unit_list if unit.result != ExecutionResult.SUCCESS][0]
                 if param.is_up_down:
                     print(Diff.mount_up_down_diff(wrong))
                 else:
@@ -1313,12 +1310,7 @@ class Down:
 
         for entry in loaded["required"]:
             path = os.path.join(index, entry["name"])
-            if os.path.exists(path):
-                print("File already exists: " + path + ". Replace? (y/n):", end="")
-                line = input()
-                if line.lower() != "y":
-                    return
-            Main.create_file(entry["contents"], path, "(Required)")
+            Down.compare_and_save(entry["contents"], path)
 
 
     @staticmethod
@@ -1412,7 +1404,7 @@ class Down:
 class Choose:
     base = ["poo", "ed", "fup"]
     view = ["down", "side"]
-    extensions  = ["c", "cpp", "js", "ts", "py", "java"]
+    extensions  = ["c", "cpp", "js", "ts", "py", "java", "h", "hpp"]
 
     def validate(ui: List[str], data_list: List[str]) -> Optional[str]:
         if len(ui) == 2:

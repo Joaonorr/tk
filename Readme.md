@@ -5,23 +5,23 @@
 - [Instalação](#instalação)
 - [O que é um teste?](#o-que-é-um-teste)
 - [Formatos de teste:](#formatos-de-teste)
-    - [Sintaxe TIO](#sintaxe-tio)
-    - [Escrevendo alguns testes](#escrevendo-alguns-testes)
-    - [Listando os testes](#listando-os-testes)
+  - [Sintaxe TIO](#sintaxe-tio)
+  - [Escrevendo alguns testes](#escrevendo-alguns-testes)
+  - [Listando os testes](#listando-os-testes)
 - [Testando um código com erros](#testando-um-código-com-erros)
 - [Executando](#executando)
 - [Convertendo entre formatos](#convertendo-entre-formatos)
 - [Exemplos rápidos](#exemplos-rápidos)
 - [Subcomandos](#subcomandos)
-    - [List](#list)
-    - [Run](#run)
-    - [Compile](#compile)
-    - [Build](#build)
-    - [Update](#update)
+  - [List](#list)
+  - [Run](#run)
+  - [Compile](#compile)
+  - [Build](#build)
+  - [Update](#update)
 - [Formatos de testes suportados](#formatos-de-testes-suportados)
-    - [VPL](#vpl)
-    - [OBI](#obi)
-    - [TIO](#tio)
+  - [VPL](#vpl)
+  - [OBI](#obi)
+  - [TIO](#tio)
 - [Rodando](#rodando)
 
 <!--TOC_END-->
@@ -30,29 +30,40 @@
 
 Se for assistir, use o modo velocidade x2 do Youtube porque eu falo devagar. :)
 
-[![](tutorial/img.png)](https://www.youtube.com/watch?v=nt4dDLzGubA&t)
-
+[![_](tutorial/img.png)](https://www.youtube.com/watch?v=nt4dDLzGubA&t)
 
 ## Instalação
+
 - Baixe o [tk.py](tk.py) e coloque em algum lugar do seu PATH
 
+- No linux, ou usando o WSL, você pode rodar o seguinte comando para instalar:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/senapk/tk/master/scripts/linux_install.sh | bash
+
+```
+
 ## O que é um teste?
+
 - Um teste define qual o comportamento esperado de um programa determinístico. Para uma determinada entrada, o programa deve gerar **sempre** a mesma saída.
 - A entrada e saída e o comportamento esperado devem ser bem definidos, por exemplo:
-    - Dados dois números inteiros de entrada, um por linha, mostre o resultado da divisão. Se o resultado for inteiro, mostre o valor inteiro, se for flutuante, mostre com duas casas decimais.
+  - Dados dois números inteiros de entrada, um por linha, mostre o resultado da divisão. Se o resultado for inteiro, mostre o valor inteiro, se for flutuante, mostre com duas casas decimais.
 
 ## Formatos de teste:
+
 - Um arquivo de texto com vários testes:
-    - modelo TIO(test input output).
-    - modelo VPL que é utilizado no plugin do moodle.
+  - modelo TIO(test input output).
+  - modelo VPL que é utilizado no plugin do moodle.
 - Uma pasta com um dois arquivos para cada teste, um arquivo com a entrada e outro com a saída.
-    - modelo maratona:
-        - Arquivos .in e .out
-        - Arquivos .in e .sol
+  - modelo maratona:
+    - Arquivos .in e .out
+    - Arquivos .in e .sol
 
 ---
+
 ### Sintaxe TIO
-```
+
+```txt
 >>>>>>>>
 entrada
 ...
@@ -71,11 +82,12 @@ saída
 ```
 
 ---
+
 ### Escrevendo alguns testes
 
 Vamos escrever alguns testes para o problema proposto. Crie um arquivo chamado `testes.tio` e vamos inserir algumas entradas para o problema proposto.
 
-```
+```txt
 >>>>>>>>
 4
 2
@@ -108,20 +120,23 @@ Vamos escrever alguns testes para o problema proposto. Crie um arquivo chamado `
 ---
 
 ### Listando os testes
+
 - Salve o arquivo `testes.tio`.
 - Abra o terminal na pasta onde colocou o arquivo.
 - Para simplificar, certifique-se que só existe esse arquivo na pasta.
 - O comando `tk` funciona com subcomandos. 
 - O subcomando `tk list` mostra os testes.
-    - Mostrando os testes: `tk list testes.tio`
-    - Opções:
-        - `-d ou --display`: mostra entradas e saídas
-        - `-i ou --index`: um índice específico
-        - `-r ou --raw`: não renderiza os whitespaces
-    - Se não passar nenhum arquivo, o script procurará na pasta todos os arquivos com extensão `.md`, `.tio` e `.vpl`.
+  - Mostrando os testes: `tk list testes.tio`
+  - Opções:
+    - `-d ou --display`: mostra entradas e saídas
+    - `-i ou --index`: um índice específico
+    - `-r ou --raw`: não renderiza os whitespaces
+  - Se não passar nenhum arquivo, o script procurará na pasta todos os arquivos com extensão `.md`, `.tio` e `.vpl`.
 
 ---
+
 ## Testando um código com erros
+
 - Crie algum código que tenta resolver o problema.
 
 ```python
@@ -142,23 +157,25 @@ int main(){
 ```
 
 - Rodando diretamente passando o código fonte
-    - `tk run solver.c testes.tio`: compila e testa seu código.
-    - `tk run solver.py testes.tio`: chama o interpretador e testa o código.
-    - `tk run "python2 solver.py" testes.tio` 
-    - `tk.run`: Ele procura os arquivos tipo `solver*` e os arquivo `*.tio` na pasta.
+  - `tk run solver.c testes.tio`: compila e testa seu código.
+  - `tk run solver.py testes.tio`: chama o interpretador e testa o código.
+  - `tk run "python2 solver.py" testes.tio` 
+  - `tk.run`: Ele procura os arquivos tipo `solver*` e os arquivo `*.tio` na pasta.
 - Se pode compilar manualmente e passar o executável em qualquer linguagem. Se passar o código fonte, o script vai compilar com muitos critérios restritivos para garantir que seu código esteja bem feito.
-    - Você pode **APENAS** compilar seu código usando `tk compile arquivo`.
-    - Erros de variáveis não declaradas, não utilizadas e muitos outros vão ser "pegues".
-        - `gcc -Wall -fsanitize=address -Wuninitialized -Wparentheses -Wreturn-type -Werror -fno-diagnostics-color`
+  - Você pode **APENAS** compilar seu código usando `tk compile arquivo`.
+  - Erros de variáveis não declaradas, não utilizadas e muitos outros vão ser "pegues".
+    - `gcc -Wall -fsanitize=address -Wuninitialized -Wparentheses -Wreturn-type -Werror -fno-diagnostics-color`
 
 ## Executando
-    - Opções extras:
-        - As mesmas do list:
-            - `-i ou --index`: roda um índice específico
-            - `-r ou --raw`: não renderiza os whitespaces
-        - `-a ou --all`: mostra todos os testes que falharam e não apenas o primeiro.
+
+- Opções extras:
+  - As mesmas do list:
+    - `-i ou --index`: roda um índice específico
+    - `-r ou --raw`: não renderiza os whitespaces
+    - `-a ou --all`: mostra todos os testes que falharam e não apenas o primeiro.
 
 - Vamos consertar nosso código
+
 ```c
 // solver.c
 #include <stdio.h>
@@ -171,21 +188,24 @@ int main(){
         printf("%.2f\n", (float)a/b);
 }
 ```
+
 - Rode agora e ele deve mostrar que todos os testes foram sucesso.
 
 ___
-## Convertendo entre formatos
-- Gerando um `.vpl`
-    - `tk build t.vpl testes.tio`
-- Gerando ou lendo o modelo de maratona
-    - Vamos definir que o padrão de entrada e saída são arquivos `.in` e `.sol`.
-        - `tk build "obi @.in @.sol" testes.tio`
-    - Se quisesse os testes no formato 00.in out.00, 01.in out.01, ...
-        - `tk build "obi @.in out.@" testes.tio`
-    - O @ funciona como um wildcard
 
+## Convertendo entre formatos
+
+- Gerando um `.vpl`
+  - `tk build t.vpl testes.tio`
+- Gerando ou lendo o modelo de maratona
+  - Vamos definir que o padrão de entrada e saída são arquivos `.in` e `.sol`.
+    - `tk build "obi @.in @.sol" testes.tio`
+  - Se quisesse os testes no formato 00.in out.00, 01.in out.01, ...
+    - `tk build "obi @.in out.@" testes.tio`
+  - O @ funciona como um wildcard
 
 ## Exemplos rápidos
+
 ```bash
 # mostra os testes
 tk list t.tio
@@ -214,7 +234,7 @@ tk build t.tio pasta1 pasta2 pasta3
 
 ## Subcomandos
 
-```
+```txt
 usage: tk [-h] {list,run,build,update} ...
 
 Roda, Converte e Contrói testes de entrada e saída.
@@ -244,7 +264,8 @@ subcommands:
 ```
 
 ### List
-```
+
+```txt
 usage: tk list [-h] [--brief] [--raw] [--index I] [--display] [T [T ...]]
 
 positional arguments:
@@ -260,6 +281,7 @@ optional arguments:
 ```
 
 ### Run
+
 ```bash
 usage: tk run [-h] [--brief] [--raw] [--index I] [--all] [--none] [T [T ...]]
 
@@ -277,6 +299,7 @@ optional arguments:
 ```
 
 ### Compile
+
 ```bash
 usage: tk compile [-h] [--keep] cmd
 
@@ -288,8 +311,8 @@ optional arguments:
   --keep, -k  keep all compilation files
 ```
 
-
 ### Build
+
 ```bash
 usage: tk build [-h] [--unlabel] [--number] [--sort] [--force] T_OUT T [T ...]
 
@@ -307,6 +330,7 @@ optional arguments:
 ```
 
 ### Update
+
 ```bash
 usage: tk update [-h] [--unlabel] [--number] [--sort] [--cmd CMD] T [T ...]
 
@@ -323,6 +347,7 @@ optional arguments:
 ```
 
 ## Formatos de testes suportados
+
 O script suporta os seguintes formatos de testes:
 
 - LEITURA
@@ -342,7 +367,7 @@ O script pode ser utilizado para rodar seu código contra os testes ou converter
 
 O formato VPL é utilizado no moodle e tem toda definição dos testes a serem executados em um único arquivo. Seja o problema que envolve ler dois números, um por linha e exibir a soma e a subtração em linhas separadas. Um típico teste VPL seria assim. Você pode encontrar esse exemplo na pasta *exemplo_readme/VPL*.
 
-```
+```txt
 case=
 input=5
 4
@@ -367,15 +392,17 @@ output="2000000
 grade reduction=50%
 ```
 
-Regras
+#### Regras
+
 - Todos os testes devem ter obrigatoriamente as tags case, input e output.
 - Eviter colocar espaços antes e depois do igual quando definir as tags:
 - O output
-    - Deve terminar com uma linha vazia
-    - Deve ter aspas no inicio e fim
+  - Deve terminar com uma linha vazia
+  - Deve ter aspas no inicio e fim
 
-**Errado**
-```
+#### Errado
+
+```txt
 case = nome
 case= nome
 case =nome
@@ -383,27 +410,32 @@ output=5 9
 output="5 9"
 grade reduction = 100%
 ```
-**Certo**
-```
+
+#### Certo
+
+```txt
 case=nome
 input=value
 output="value
 "
 grade reduction=40%
 ```
+
 - O conteúdo do case é opcional.
 - Se não houver o valor da tag grade reduction, a redução da nota será proporcional à quantidade de testes.
-    - Se existem 5 testes. Cada teste vale 20% da notas.
-    - Se em um caso for aplicado um grade reduction de 50%, ao errar o teste o aluno perde 50% da nota.
+  - Se existem 5 testes. Cada teste vale 20% da notas.
+  - Se em um caso for aplicado um grade reduction de 50%, ao errar o teste o aluno perde 50% da nota.
 
 ### OBI
 
 A OBI mudou o formato de teste com o passar dos anos. Vamos utilizar o modelo de 2017 como referência. Nele, cada caso de teste é formado por dois arquivos, um arquivo .in que contém a entrada e um arquivo .sol que contém a solução esperada. Seja o problema que consiste em ler dois números, um por linha e escrever na primeira linha a soma e na segunda a subtração.
 Para ler ou executar uma pasta com os testes nesse formato, o parâmetro a ser passado seria
 
-    tk list "pasta @.in @.sol"
-
+```bash
+tk list "pasta @.in @.sol"
 ```
+
+```txt
 ==> 1.in <==
 5
 4
